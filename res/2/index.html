@@ -1,0 +1,184 @@
+﻿<!DOCTYPE html>
+<html lang="{{ post_data.locale }}">
+<head>
+    <meta charset="UTF-8">
+	<link rel="icon" type="image/png" href="https://metin2pserver.net/assets/img/fav.png" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ translate(post_data.locale, 'AntiBot Check') }}</title>
+    <style>
+		body {
+			font-family: 'Source Sans Pro',sans-serif;
+			background: 
+						linear-gradient(
+							rgba(0, 0, 0, 0.85), 
+							rgba(0, 0, 0, 0.85)
+						),
+						url('https://metin2pserver.net/assets/img/bg-metin2-pserver-toplist-ranking.jpg');
+			width: 100%;
+			height: 100vh;
+		}
+		h1 {
+			font-size:14px;
+			margin:0;
+		}
+		.card {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			margin-top: -200px;
+			height: 400px;
+			margin-left: -200px;
+			width: 400px;
+		}
+		.card-header, .card-footer {
+			padding: 10px;
+			background-color: #292929;
+			color:#dadada;
+		}
+		.card-footer {
+			width:380px;
+			margin-left:-6px;
+		}
+		.card-header {
+			border-bottom: 1px solid #4b4b4b;
+		}
+		.card-body {
+			position:relative;
+			margin-left: 48px;
+			height: 300px;
+			width: 307px;
+		}
+		.card-outter {
+			height: 309px;
+			width: 388px;
+			padding:6px;
+			background-color: #292929;
+			-webkit-box-shadow: inset 0px 0px 30px 5px rgba(95,168,224,0.2);
+			box-shadow: inset 0px 0px 30px 5px rgba(95,168,224,0.2);
+			margin: 0 auto;
+		}
+		.card-bottom-wrap {
+			background: rgb(96,84,62);
+			background: linear-gradient(90deg,rgba(96,84,62,1) 0%,rgba(96,77,62,1) 100%);
+			padding: 10px;
+			line-height: 25px;
+			color: #fff;
+			font-size: 14px;
+			box-sizing: border-box;
+			border: 1px solid #72604a;
+			display: flex;
+			justify-content: space-between;
+		}
+		.card-im {
+			background-size: cover;
+			background-repeat: no-repeat;
+			margin: 0;
+			padding: 0;
+			position:absolute;
+			top:0px;
+			left:0px;
+			cursor: crosshair;
+			height: 300px;
+			width: 300px;
+		}
+		#refresh {
+			background: url('https://img.metin2pserver.net/refresh.png');
+			width:33px;
+			height:33px;
+			position: absolute;
+			top: 2px;
+			right: 6px;
+			cursor: grab;
+		}
+		.shake {
+			animation: shake 0.5s;
+			animation-iteration-count: infinite;
+		}
+		@keyframes shake {
+			0% { transform: translate(1px, 1px) rotate(0deg); }
+			10% { transform: translate(-1px, -2px) rotate(-1deg); }
+			20% { transform: translate(-3px, 0px) rotate(1deg); }
+			30% { transform: translate(3px, 2px) rotate(0deg); }
+			40% { transform: translate(1px, -1px) rotate(1deg); }
+			50% { transform: translate(-1px, 2px) rotate(-1deg); }
+			60% { transform: translate(-3px, 1px) rotate(0deg); }
+			70% { transform: translate(3px, 1px) rotate(-1deg); }
+			80% { transform: translate(-1px, -1px) rotate(1deg); }
+			90% { transform: translate(1px, 2px) rotate(0deg); }
+			100% { transform: translate(1px, -2px) rotate(-1deg); }
+		  }
+	</style>	
+</head>
+<body>
+	<div class="card">
+		<div class="card-header">
+			<h1>{{ translate(post_data.locale, 'AntiBot Check') }}</h1>
+			<div id="refresh" title="{{ translate(post_data.locale, 'Reload') }}"></div>
+		</div>
+		<div class="card-outter">
+			<div class="card-body">
+				<div class="card-im" style="background:url('{{ img|safe }}')">
+			</div>
+		</div>
+		<div class="card-footer">
+			<div class="card-bottom-wrap">
+				<span>{{ translate(post_data.locale, 'Click on the object that appears only once!') }}</span>
+			</div>
+		</div>
+	</div>
+	
+	<form action="{{ forward_url }}" method="POST" id="vote">
+		<input type="hidden" name="id" value="{{ id }}">
+		<input type="hidden" name="captcha" value="{{ captcha }}">
+		<input type="hidden" name="click" value="">
+		{% for k,v in post_data.items() -%}
+		<input type="hidden" name="{{ k }}" value="{{ v }}">
+		{% endfor -%}
+		<input type="submit" style="display: none">
+	</form>
+	
+	<form method="POST" id="refresh_form">
+		{% for k,v in post_data.items() -%}
+		<input type="hidden" name="{{ k }}" value="{{ v }}">
+		{% endfor -%}
+	</form>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js" integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script>
+		$(document).ready(function() {
+			function fail() {
+				$('.card').addClass('shake');
+				setTimeout(function() {
+					$('.card').removeClass('shake');
+					$('form#refresh_form').submit();
+				}, 400);
+			}
+
+			$('.card-im').click(function(e) {
+				var offset = $(this).offset();
+				var x = e.pageX - offset.left;
+				var y = e.pageY - offset.top;
+				$("input[name=click]").attr('value', JSON.stringify([x,y]));
+				
+				var datas = $("form#vote").serializeArray();
+				datas.push({'test':1});
+				datas.push({'name':'test', 'value':1});
+				$.ajax({
+					type: "POST",
+					url: "/validate",
+					data: datas,
+				}).done(function(data) {
+					if (data['status'] == false)
+						fail();
+					else
+						$("form#vote").submit();
+				});
+			});
+
+			$('#refresh').click(function() {
+				$('form#refresh_form').submit();
+			});
+		});
+	</script>
+</body>
+</html>

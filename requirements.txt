@@ -1,0 +1,10 @@
+requests
+Pillow
+Flask
+mariadb
+cheroot
+StrEnum
+cachetools
+pyinstrument
+lmdb
+numpy
