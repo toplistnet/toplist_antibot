@@ -93,7 +93,7 @@ def GenerateCaptcha():
                 else:
                     retries += 1
                     if retries >= 60:
-                        if utils.Config(key='debug', default=0):
+                        if int(utils.Config(key='debug', default=0)):
                             print("Error: Reached max retries")
                         return None
 
@@ -118,7 +118,7 @@ def Thread_PreGenerateCaptchas2() -> None:
     
     while True:
         while not READY_CAPTCHAS_QUEUE.full():
-            if utils.Config('debug'):
+            if int(utils.Config(key='debug')):
                 print(f"{strftime('%Y-%m-%d %H:%M:%S')} generate<2> +1/{READY_CAPTCHAS_QUEUE.qsize()}")
             captcha: dict = GenerateCaptcha()
             if captcha != None:
@@ -168,7 +168,7 @@ def Validate(post_data: dict, is_test: bool) -> dict:
         if not utils.IsPointInCircle(point_circle_center=utils.Point(x=db_data['x'], y=db_data['y']), 
                                point_click=utils.Point(x=post_data['click'][0], y=post_data['click'][1]),
                                radius=db_data['r']):
-            if utils.Config(key='debug'):
+            if int(utils.Config(key='debug')):
                 print(f"USER ERR:    click not in {post_data['click']} | {db_data}")
             return { 'status' : False, 'error' : 'CLICK' }
         

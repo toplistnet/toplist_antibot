@@ -88,13 +88,13 @@ def GetCachedPILImage(path: str, convert: str) -> Image:
 def CropCircle(img: Image, resize: tuple = None) -> Image:
     if resize:
         img = img.resize(resize)        
-    npImage=np.array(img)
+    npImage=np.array(object=img)
     h,w=img.size
-    alpha = Image.new('L', img.size,0)
-    draw = ImageDraw.Draw(alpha)
+    alpha = Image.new(mode='L', size=img.size,color=0)
+    draw = ImageDraw.Draw(im=alpha)
     draw.pieslice([0,0,h,w],0,360,fill=255)
-    npAlpha = np.array(alpha)
-    npImage = np.dstack((npImage,npAlpha))
+    npAlpha = np.array(object=alpha)
+    npImage = np.dstack(tup=(npImage,npAlpha))
     img = Image.fromarray(npImage)
     return img
 
