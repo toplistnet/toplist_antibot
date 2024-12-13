@@ -7,22 +7,22 @@ import pickle
 import os
 
 class Point(object):
-    def __init__(self, x: int, y: int):
-        self.x = x
-        self.y = y
+    def __init__(self, x: int, y: int) -> None:
+        self.x: int = x
+        self.y: int = y
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "({},{})".format(self.x, self.y)
 
 class Rectangle(object):
-    def __init__(self, posn: Point, w: int, h: int, padding: int = 0):
-        self.pos = posn
+    def __init__(self, posn: Point, w: int, h: int, padding: int = 0) -> None:
+        self.pos: Point = posn
         self.pos.x -= padding
         self.pos.y -= padding
-        self.width = w + padding + padding
-        self.height = h + padding + padding
+        self.width: int = w + padding + padding
+        self.height: int = h + padding + padding
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "({0},{1},{2})".format(self.pos, self.width, self.height)
 
     def IsIn(self, p: Point) -> bool:
@@ -36,37 +36,30 @@ def IsRectCollision(r1x, r1y, r1w, r1h, r2x, r2y, r2w, r2h) -> bool:
         r1y <= r2y + r2h
 
 def IsPointInCircle(point_circle_center: Point, point_click: Point, radius: int) -> bool:
-    dist = math.sqrt((point_circle_center.x - point_click.x) ** 2 + (point_circle_center.y - point_click.y) ** 2)
+    dist: float = math.sqrt((point_circle_center.x - point_click.x) ** 2 + (point_circle_center.y - point_click.y) ** 2)
     return dist <= radius
 
 @cachetools.func.ttl_cache(maxsize=128, ttl=10*60)
-def Config(key, default = '') -> any:
+def Config(key, default = '') -> str | int:
     import configparser
     from os.path import isfile
     config = configparser.ConfigParser()
     for file in ['config.cfg', 'config.default.cfg']:
-        if isfile(file):
-            config.read(file)
+        if isfile(path=file):
+            config.read(filenames=file)
             break
     
-    v = config['DEFAULT'][key] if key in config['DEFAULT'] else default
-    return int(v) if str(v).isdigit() else v
+    v: str = config['DEFAULT'][key] if key in config['DEFAULT'] else default
+    return int(v) if str(object=v).isdigit() else v
 
 @cachetools.func.ttl_cache(maxsize=128, ttl=10*60)
 def Cached_Glob(pattern):
     from glob import glob
-    return glob(pattern)
+    return glob(pathname=pattern)
 
 @cachetools.func.ttl_cache(maxsize=1, ttl=10*60)
-def GetForwardUrl(url: str) -> str:
-    return Config('voted_url', '?')
-    # print(url)
-    # if 'metin2pserver.net/' not in url:
-    #     return Config('voted_url', '?')
-    # elif 'vote' in url:
-    #     return Config('voted_url', '?')
-    # else:
-    #     return url
+def GetForwardUrl(url: str) -> str | int:
+    return Config(key='voted_url', default='?')
     
 def stacktrace() -> str:
     import traceback, sys
@@ -88,7 +81,7 @@ def get_linenumber() -> int:
 
 @cachetools.func.ttl_cache(maxsize=50, ttl=20*60)
 def GetCachedPILImage(path: str, convert: str) -> Image:
-    im = Image.open(path)
+    im = Image.open(fp=path)
     im = im.convert(convert)
     return im
     
@@ -108,30 +101,30 @@ def CropCircle(img: Image, resize: tuple = None) -> Image:
 ICON_DATASET = None
 def PrepareDataset():
     import os
-    if not (os.path.isdir('res/cifar-10-batches-py') or os.path.isfile('res/cifar-10-python.tar.gz')):
-        os.system('wget -c https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz -O res/cifar-10-python.tar.gz')
+    if not (os.path.isdir(s='res/cifar-10-batches-py') or os.path.isfile(path='res/cifar-10-python.tar.gz')):
+        os.system(command='wget -c https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz -O res/cifar-10-python.tar.gz')
     
-    if not os.path.isdir('res/cifar-10-batches-py'):
+    if not os.path.isdir(s='res/cifar-10-batches-py'):
         print('no dir found so extracting tar.gz \n')
-        os.system('cd res/ && tar xvzf cifar-10-python.tar.gz && cd ../')
+        os.system(command='cd res/ && tar xvzf cifar-10-python.tar.gz && cd ../')
     
     global ICON_DATASET
-    with open('res/cifar-10-batches-py/data_batch_3', 'rb') as fo:
+    with open(file='res/cifar-10-batches-py/data_batch_3', mode='rb') as fo:
         import pickle
-        data = pickle.load(fo, encoding='bytes')
+        data = pickle.load(file=fo, encoding='bytes')
         ICON_DATASET = data[b'data']
    
-    if not (os.path.isdir('res/bgs') and os.path.isdir('res/bgs/test_lmdb') and os.path.isfile('res/bgs/test_lmdb.zip')):
-        if not os.path.isdir('res/bgs/'):
-            os.mkdir('res/bgs/')
-        if not os.path.isdir('res/bgs/test_lmdb/'):
-            os.mkdir('res/bgs/test_lmdb/')
-        if not os.path.isfile('res/bgs/test_lmdb.zip'):
-            os.system('wget -c http://dl.yf.io/lsun/scenes/test_lmdb.zip -O res/bgs/test_lmdb.zip')
+    if not (os.path.isdir(s='res/bgs') and os.path.isdir('res/bgs/test_lmdb') and os.path.isfile(path='res/bgs/test_lmdb.zip')):
+        if not os.path.isdir(s='res/bgs/'):
+            os.mkdir(path='res/bgs/')
+        if not os.path.isdir(s='res/bgs/test_lmdb/'):
+            os.mkdir(path='res/bgs/test_lmdb/')
+        if not os.path.isfile(path='res/bgs/test_lmdb.zip'):
+            os.system(command='wget -c http://dl.yf.io/lsun/scenes/test_lmdb.zip -O res/bgs/test_lmdb.zip')
     
     if not os.path.isdir('res/bgs/0'):
         print('no dir found so extracting zip \n')
-        os.system('cd res/bgs && unzip -o test_lmdb.zip && cd ../../')
+        os.system(command='cd res/bgs && unzip -o test_lmdb.zip && cd ../../')
         
         db_path = 'res/bgs/test_lmdb/'
         out_dir = 'res/bgs/'
@@ -147,13 +140,13 @@ def PrepareDataset():
             cursor = txn.cursor()
             for key, val in cursor:
                 if not flat:
-                    image_out_dir = os.path.join(out_dir, '/'.join(key.decode('ascii')[:6]))
+                    image_out_dir: str = os.path.join(out_dir, '/'.join(key.decode('ascii')[:6]))
                 else:
                     image_out_dir = out_dir
-                if not os.path.exists(image_out_dir):
-                    os.makedirs(image_out_dir)
-                image_out_path = os.path.join(image_out_dir, key.decode('ascii') + '.webp')
-                with open(image_out_path, 'wb') as fp:
+                if not os.path.exists(path=image_out_dir):
+                    os.makedirs(name=image_out_dir)
+                image_out_path: str = os.path.join(image_out_dir, key.decode('ascii') + '.webp')
+                with open(file=image_out_path, mode='wb') as fp:
                     fp.write(val)
                 count += 1
                 if count == limit:
@@ -161,14 +154,14 @@ def PrepareDataset():
                 if count % 1000 == 0:
                     print('Finished', count, 'images')
                     
-def SaveToTempFile(filename: str, obj: any) -> None:
-    with open(filename, 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+def SaveToTempFile(filename: str, obj) -> None:
+    with open(file=filename, mode='wb') as f:
+        pickle.dump(obj=obj, file=f, protocol=pickle.HIGHEST_PROTOCOL)
         
-def LoadFromTempFile(filename: str, obj: any) -> None:
-    if os.path.isfile(filename):
-        with open(filename, 'rb') as f:
-            obj = pickle.load(f)
-        os.remove(filename)
+def LoadFromTempFile(filename: str, obj) -> None:
+    if os.path.isfile(path=filename):
+        with open(file=filename, mode='rb') as f:
+            obj = pickle.load(file=f)
+        os.remove(path=filename)
     return obj
     

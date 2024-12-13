@@ -1,7 +1,10 @@
 __pycache__
-settings.*.yaml
-.idea
-/static/guild/*.png
-/static/cache/*.css
-/static/cache/*.js
+config.cfg
+.*
 *.log
+*.png
+*.jpg
+*.jpeg
+res/*.gz
+res/bgs/*
+res/cifar-10-batches-py/*

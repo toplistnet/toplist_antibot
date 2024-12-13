@@ -60,7 +60,7 @@ def PlaceOneIcon(bg: Image.Image, icon: Image.Image, icon_coordinates: list, ico
     bg.paste(icon_altered, newCoords, icon_altered)
     return True
 
-def GenerateCaptcha() -> any:
+def GenerateCaptcha():
     all_icons = Cached_Glob('res/1/icons/*')
     bg_img_path = random.choice(Cached_Glob('res/1/bgs/*'))
     icons_count = random.randint(3, min(4, len(all_icons)))
@@ -98,7 +98,7 @@ def GenerateCaptcha() -> any:
     return { 'bg_base64' : bg_base64, 'icons_base64' : icons_base64, 'icons_count' : icons_count, 'icon_coordinates' : icon_coordinates }
 
 def Thread_PreGenerateCaptchas1():
-    if not Config('captcha1_pregeneration_count', 100):
+    if not Config('captcha1_pregeneration_count', "100"):
         return
     
     while True:
@@ -107,7 +107,7 @@ def Thread_PreGenerateCaptchas1():
                 print(f"{strftime('%Y-%m-%d %H:%M:%S')} generate<1> +1/{READY_CAPTCHAS_QUEUE.qsize()}")
             captcha = GenerateCaptcha()
             if captcha != None:
-                READY_CAPTCHAS_QUEUE.put(captcha)
+                READY_CAPTCHAS_QUEUE.put(item=captcha)
         sleep(0.005)
         
 def Generate(post_data: dict, forward_url: str) -> dict:

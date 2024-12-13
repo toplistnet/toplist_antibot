@@ -49,11 +49,11 @@ def GenerateCaptcha():
     icon_fake = GenerateCircleIcon()
                 
     icon_coordinates = []
-    for i in range(utils.Config('captcha2_icon_count', 8)):
+    for i in range(utils.Config(key='captcha2_icon_count', default="8")):
         is_fake = i > 0
         icon_to_paste = icon if not is_fake else copy(icon_fake)
  
-        CAPTCHA2_MODIFIER = int(utils.Config(key='captcha2_modifier', default=10))
+        CAPTCHA2_MODIFIER = int(utils.Config(key='captcha2_modifier', default="10"))
 
         # transparency
         icon_to_paste_alpha = icon_to_paste.copy()
@@ -92,7 +92,7 @@ def GenerateCaptcha():
                     newCoords: tuple[int, int] = x, y
                 else:
                     retries += 1
-                    if retries >= 30:
+                    if retries >= 60:
                         if utils.Config(key='debug', default=0):
                             print("Error: Reached max retries")
                         return None
@@ -108,21 +108,21 @@ def GenerateCaptcha():
     buffered = BytesIO()
     bg.save(buffered, format="JPEG")
     bg_base64 = base64.b64encode(buffered.getvalue())
-    bg_base64 = "data:image/jpeg;base64," + bg_base64.decode('utf-8')
+    bg_base64 = "data:image/jpeg;base64," + bg_base64.decode(encoding='utf-8')
     
     return { 'bg_base64' : bg_base64, 'data' : icon_coordinates[0] }
 
 def Thread_PreGenerateCaptchas2() -> None:
-    if not utils.Config('captcha2_pregeneration_count', 100):
+    if not utils.Config(key='captcha2_pregeneration_count', default="100"):
         return
     
     while True:
         while not READY_CAPTCHAS_QUEUE.full():
             if utils.Config('debug'):
                 print(f"{strftime('%Y-%m-%d %H:%M:%S')} generate<2> +1/{READY_CAPTCHAS_QUEUE.qsize()}")
-            captcha = GenerateCaptcha()
+            captcha: dict = GenerateCaptcha()
             if captcha != None:
-                READY_CAPTCHAS_QUEUE.put(captcha)
+                READY_CAPTCHAS_QUEUE.put(item=captcha)
         sleep(0.005)
         
 def Generate(post_data: dict, forward_url: str) -> dict:
@@ -138,7 +138,7 @@ def Generate(post_data: dict, forward_url: str) -> dict:
     
     translate = Localization().Translate
     
-    html = render_template("2/index.html", 
+    html = render_template(template_name_or_list="2/index.html", 
                         post_data = post_data,
                         id = id,
                         captcha = 'findone',
@@ -151,13 +151,13 @@ def Generate(post_data: dict, forward_url: str) -> dict:
 
 def Validate(post_data: dict, is_test: bool) -> dict:
     try:
-        data = db.GetCaptchaData(int(post_data['id']), is_test=is_test)
+        data: str = db.GetCaptchaData(id=int(post_data['id']), is_test=is_test)
         
         if not data:
             return { 'status' : False, 'error' : 'NOTFOUND' }
         
-        db_data = json.loads(data)
-        post_data['click'] = json.loads(post_data['click'])
+        db_data: dict = json.loads(s=data)
+        post_data['click'] = json.loads(s=post_data['click'])
         
         if len(post_data['click']) != 2:
             return { 'status' : False, 'error' : 'MISM', 'db' : len(db_data), 'c' : len(post_data['click']) }
@@ -168,7 +168,7 @@ def Validate(post_data: dict, is_test: bool) -> dict:
         if not utils.IsPointInCircle(point_circle_center=utils.Point(x=db_data['x'], y=db_data['y']), 
                                point_click=utils.Point(x=post_data['click'][0], y=post_data['click'][1]),
                                radius=db_data['r']):
-            if utils.Config('debug'):
+            if utils.Config(key='debug'):
                 print(f"USER ERR:    click not in {post_data['click']} | {db_data}")
             return { 'status' : False, 'error' : 'CLICK' }
         
@@ -176,7 +176,7 @@ def Validate(post_data: dict, is_test: bool) -> dict:
     
     except Exception as e:
         print(utils.stacktrace())
-        print("EXCEPTION %s" % str(e))
+        print("EXCEPTION %s" % str(object=e))
         return { 'status' : False, 'error' : 'Exception' }
 
 if __name__ == '__main__':

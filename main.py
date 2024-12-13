@@ -24,13 +24,13 @@ if __name__ == '__main__':
     from app import app
     from cheroot.wsgi import Server, PathInfoDispatcher
     
-    d = PathInfoDispatcher({'/': app})
+    d = PathInfoDispatcher(apps={'/': app})
     server = Server(
-        bind_addr=(Config('ip', '127.0.0.1'), Config('port', 8001)), 
+        bind_addr=(Config(key='ip', default='127.0.0.1'), int(Config(key='port', default="8001"))), 
         wsgi_app=d, 
-        numthreads=Config('threads', 5), 
+        numthreads=int(Config(key='threads', default="5")),
         server_name='x', 
-        max=Config('threads_max', 20), 
+        max=int(Config(key='threads_max', default="20")), 
         reuse_port=True)
 
     try:
