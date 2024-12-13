@@ -3,6 +3,7 @@ from utils import Config
 from flask import Blueprint
 from singleton import Singleton
 
+# TODO: replace mariadb with api calls to website
 class Localization(Singleton):
 
     LANGUAGES = []
