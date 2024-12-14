@@ -154,13 +154,13 @@ def Validate(post_data: dict, is_test: bool) -> dict:
         data: str = db.GetCaptchaData(id=int(post_data['id']), is_test=is_test)
         
         if not data:
-            return { 'status' : False, 'error' : 'NOTFOUND' }
+            return { 'status' : False, 'captcha_type' : 2, 'error' : 'NOTFOUND' }
         
         db_data: dict = json.loads(s=data)
         post_data['click'] = json.loads(s=post_data['click'])
         
         if len(post_data['click']) != 2:
-            return { 'status' : False, 'error' : 'MISM', 'db' : len(db_data), 'c' : len(post_data['click']) }
+            return { 'status' : False, 'captcha_type' : 2, 'error' : 'MISM', 'db' : len(db_data), 'c' : len(post_data['click']) }
          
         post_data['click'][0] = round(number=post_data['click'][0])
         post_data['click'][1] = round(number=post_data['click'][1])
@@ -170,14 +170,14 @@ def Validate(post_data: dict, is_test: bool) -> dict:
                                radius=db_data['r']):
             if int(utils.Config(key='debug')):
                 print(f"USER ERR:    click not in {post_data['click']} | {db_data}")
-            return { 'status' : False, 'error' : 'CLICK' }
+            return { 'status' : False, 'captcha_type' : 2, 'error' : 'CLICK' }
         
-        return { 'status' : True, 'error' : None }
+        return { 'status' : True, 'captcha_type' : 2, 'error' : None }
     
     except Exception as e:
         print(utils.stacktrace())
         print("EXCEPTION %s" % str(object=e))
-        return { 'status' : False, 'error' : 'Exception' }
+        return { 'status' : False, 'captcha_type' : 2, 'error' : 'Exception' }
 
 if __name__ == '__main__':
     utils.PrepareDataset()

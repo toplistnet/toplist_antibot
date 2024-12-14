@@ -140,14 +140,14 @@ def Validate(post_data: dict, is_test: bool) -> dict:
         data: str = db.GetCaptchaData(id=int(post_data['id']), is_test=is_test)
         
         if not data:
-            return { 'status' : False, 'error' : 'NOTFOUND' }
+            return { 'status' : False, 'captcha_type' : 1, 'error' : 'NOTFOUND' }
         
         db_data: dict = json.loads(s=data)
         post_data['clicks'] = json.loads(post_data['clicks'])
 
         if len(db_data) != len(post_data['clicks']):
             if len(db_data) < len(post_data['clicks']):
-                return { 'status' : False, 'error' : 'TOOMANY' }
+                return { 'status' : False, 'captcha_type' : 1, 'error' : 'TOOMANY' }
             
             if is_test:
                 index: int = len(post_data['clicks']) - 1
@@ -162,9 +162,9 @@ def Validate(post_data: dict, is_test: bool) -> dict:
                     print("USER ERR:    click[%d] not in %s | %s | %s" % (index, str(post_data['clicks'][index]), str(object=rect_data), str(object=rect)))
                 elif int(Config(key='debug')):
                     print("OKOK OKK:    click[%d] not in %s | %s | %s" % (index, str(post_data['clicks'][index]), str(object=rect_data), str(object=rect)))
-                return { 'status' : result }
+                return { 'status' : result, 'captcha_type' : 1 }
             
-            return { 'status' : False, 'error' : 'MISM', 'db' : len(db_data), 'c' : len(post_data['clicks']) }
+            return { 'status' : False, 'captcha_type' : 1, 'error' : 'MISM', 'db' : len(db_data), 'c' : len(post_data['clicks']) }
         
         index = 0
         for rect_data in db_data:
@@ -175,15 +175,15 @@ def Validate(post_data: dict, is_test: bool) -> dict:
             if not rect.IsIn(Point(x=post_data['clicks'][index][0], y=post_data['clicks'][index][1])):
                 if int(Config(key='debug')):
                     print("USER ERR:    click[%d] not in %s | %s | %s" % (index, str(object=post_data['clicks'][index]), str(object=rect_data), str(rect)))
-                return { 'status' : False, 'error' : 'CLICK' + str(object=index) }
+                return { 'status' : False, 'captcha_type' : 1, 'error' : 'CLICK' + str(object=index) }
             
             index += 1
         
-        return { 'status' : True, 'error' : None }
+        return { 'status' : True, 'captcha_type' : 1, 'error' : None }
     except Exception as e:
         print(stacktrace())
         print("EXCEPTION %s" % str(object=e))
-        return { 'status' : False, 'error' : 'Exception' }
+        return { 'status' : False, 'captcha_type' : 1, 'error' : 'Exception' }
 
 if __name__ == "__main__":
     res = Generate(post_data={}, forward_url='')
