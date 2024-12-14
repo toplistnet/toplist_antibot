@@ -22,7 +22,13 @@ if Config(key='profiler', default="0") == 'pyinstrument': # suggested
             
 @app.route(rule="/captcha", methods=['GET','POST'])
 def web_gen_captcha():
-    ip = request.remote_addr if 'X-Real-IP' not in request.headers else request.headers['X-Real-IP']
+    # TODO: add hash to post data, verify post data first (captcha type etc)
+    ip: str = ""
+    if 'X-Real-IP' not in request.headers:
+        request.remote_addr 
+    else:
+        request.headers.get(key='X-Real-IP', default='x')
+
     if request.method == 'GET':
         if request.referrer and request.referrer != request.url:
             return redirect(location=request.referrer)
@@ -31,23 +37,33 @@ def web_gen_captcha():
             
     post: dict[str, str] = request.form.to_dict()
     
-    if not post.keys() >= {'voted', 'server_id', 'player_id', '_f', 'locale'}:
+    if not post.keys() >= {'voted', 'server_id', 'player_id', '_f', 'locale', 'captcha_type'}:
         return "missing parameters"
     
-    Stats().Add(server_id=post['server_id'], what=Stats.what.captchas)
+    Stats().Add(server_id=str(object=post['server_id']), what=Stats.what.captchas)
     IPStats().Add(ip=ip, what=IPStats.what.captchas)
     
-    captcha = int(Config(key='captcha', default="2"))
-    if captcha == 1:
-        captcha = captcha1.Generate(post_data=post, forward_url=str(object=GetForwardUrl(url=request.referrer)))
-    elif captcha == 2:
-        captcha = captcha2.Generate(post_data=post, forward_url=str(object=GetForwardUrl(url=request.referrer)))
-    return captcha['html']
+    forward_url: str = str(object=GetForwardUrl(url=request.referrer))
+    captcha_type: int = int(post['captcha_type'])
+    
+    if captcha_type == 1:
+        captcha1.Generate(post_data=post, forward_url=forward_url).get('html', '')
+    elif captcha_type == 2:
+        return captcha2.Generate(post_data=post, forward_url=forward_url).get('html', '')
+    
+    return "not found"
+
+# TODO: replace API call with info in redirect url, and hash to verify 
 
 @app.route("/validate", methods=['POST'])
 def web_validate_captcha():
     post: dict[str, str] = request.form.to_dict()
-    ip: str = request.remote_addr if 'X-Real-IP' not in request.headers else request.headers.get(key='X-Real-IP', default='127.0.0.1')
+    ip: str = ""
+    if 'X-Real-IP' not in request.headers:
+        request.remote_addr
+    else:
+        request.headers.get(key='X-Real-IP', default='127.0.0.1')
+
     is_test: bool = ip == '127.0.0.1' or 'test' in post
     
     if 'internal' in post:
@@ -98,12 +114,14 @@ if not int(Config(key='debug')):
         print("%s %s" % (request.url, str(error)))
         return "",500
 else:
-    @app.route(rule='/test_gen')
-    def web_test_gen():
-        if int(Config(key='captcha', default="2")) == 1:
-            captcha = captcha1.GenerateCaptcha()
-        elif int(Config(key='captcha', default="2")) == 2:
-            captcha = captcha2.GenerateCaptcha()
+    @app.route(rule='/test_gen/1')
+    def web_test_gen1():
+        captcha = captcha1.GenerateCaptcha()
+        return ""
+    
+    @app.route(rule='/test_gen/2')
+    def web_test_gen2():
+        captcha = captcha2.GenerateCaptcha()
         return ""
 
 if Config(key='profiler', default="0") == 'pyinstrument':

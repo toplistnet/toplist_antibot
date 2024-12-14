@@ -158,10 +158,10 @@ def SaveToTempFile(filename: str, obj) -> None:
     with open(file=filename, mode='wb') as f:
         pickle.dump(obj=obj, file=f, protocol=pickle.HIGHEST_PROTOCOL)
         
-def LoadFromTempFile(filename: str, obj) -> None:
+def LoadFromTempFile(filename: str) -> dict:
     if os.path.isfile(path=filename):
         with open(file=filename, mode='rb') as f:
-            obj = pickle.load(file=f)
+            obj: dict = pickle.load(file=f)
         os.remove(path=filename)
     return obj
     
