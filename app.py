@@ -1,3 +1,4 @@
+import hashlib
 import logging
 logging.basicConfig(format='%(asctime)s  %(levelname)s  %(message)s', 
                     filename='log.log', encoding='utf-8', level=logging.DEBUG)
@@ -37,7 +38,7 @@ def web_gen_captcha():
             
     post: dict[str, str] = request.form.to_dict()
     
-    if not post.keys() >= {'voted', 'server_id', 'player_id', '_f', 'locale', 'captcha_type'}:
+    if not post.keys() >= {'voted', 'server_id', 'player_id', '_f', 'locale', 'captcha_type', 'hash'}:
         return "missing parameters"
     
     Stats().Add(server_id=str(object=post['server_id']), what=Stats.what.captchas)
@@ -45,13 +46,20 @@ def web_gen_captcha():
     
     forward_url: str = str(object=GetForwardUrl(url=request.referrer))
     captcha_type: int = int(post['captcha_type'])
+    player_id: int = int(post['player_id'])
+    server_id: int = int(post['server_id'])
+
+    _hash: str = hashlib.sha256(f"vote hash {server_id} {captcha_type} {player_id}".encode()).hexdigest()
     
+    if _hash != post['hash']:
+        return "invalid hash"
+
     if captcha_type == 1:
-        captcha1.Generate(post_data=post, forward_url=forward_url).get('html', '')
+        return captcha1.Generate(post_data=post, forward_url=forward_url).get('html', '')
     elif captcha_type == 2:
         return captcha2.Generate(post_data=post, forward_url=forward_url).get('html', '')
     
-    return "not found"
+    return "error 51"
 
 # TODO: replace API call with info in redirect url, and hash to verify 
 
