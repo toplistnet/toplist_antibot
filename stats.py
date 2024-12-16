@@ -35,7 +35,7 @@ class Stats(Singleton):
         }
     
     def Add(self, server_id: str, what: what) -> None:
-        self.all_stats['general'][what] = self.all_stats['general'][what] + 1
+        # self.all_stats['general'][what] = self.all_stats['general'][what] + 1
         
         if server_id not in self.all_stats:
             self.Reset(who=server_id)

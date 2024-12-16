@@ -106,7 +106,7 @@ def Thread_PreGenerateCaptchas1() -> None:
     while True:
         while not READY_CAPTCHAS_QUEUE.full():
             if int(Config(key='debug')):
-                print(f"{strftime('%Y-%m-%d %H:%M:%S')} generate<1> +1/{READY_CAPTCHAS_QUEUE.qsize()}")
+                print(f"GG{strftime('%Y-%m-%d %H:%M:%S')} generate<1> +1/{READY_CAPTCHAS_QUEUE.qsize()}")
             captcha = GenerateCaptcha()
             if captcha != None:
                 READY_CAPTCHAS_QUEUE.put(item=captcha)
