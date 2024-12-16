@@ -117,10 +117,10 @@ if not int(Config(key='debug')):
     def page_not_found(e):
         return "",400
     
-    @app.errorhandler(Exception)
-    def all_exception_handler(error):
-        print("%s %s" % (request.url, str(error)))
-        return "",500
+    # @app.errorhandler(Exception)
+    # def all_exception_handler(error):
+        # print("all_exception_handler%s %s" % (request.url, str(error)))
+        # return "",500
 else:
     @app.route(rule='/test_gen/1')
     def web_test_gen1():
