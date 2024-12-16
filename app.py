@@ -46,10 +46,10 @@ def web_gen_captcha():
     
     forward_url: str = str(object=GetForwardUrl(url=request.referrer))
     captcha_type: int = int(post['captcha_type'])
-    player_id: int = int(post['player_id'])
+    player_id: str = post['player_id']
     server_id: int = int(post['server_id'])
 
-    _hash: str = hashlib.sha256(f"vote hash {server_id} {captcha_type} {player_id}".encode()).hexdigest()
+    _hash: str = hashlib.sha256(string=f"vote hash {server_id} {captcha_type} {player_id}".encode()).hexdigest()
     
     if _hash != post['hash']:
         return "invalid hash"
