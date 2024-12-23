@@ -8,7 +8,6 @@ from urllib import parse
 import app.captcha1 as captcha1
 import app.captcha2 as captcha2
 import time
-import re
 
 captchas: dict = {
     1 : {
