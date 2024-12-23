@@ -361,7 +361,7 @@ async def route_api_account_stats(r: Request) -> Response:
     if not r.post.keys() >= {'captcha_user_id'}:
         return ResponseJSON(content={"status" : False, "error" : "missing parameters"})
     
-    data = await db.queryField(query="SELECT sitekey, secretkey FROM captcha_users WHERE id=:id", args={
+    data = await db.queryRow(query="SELECT sitekey, secretkey FROM captcha_users WHERE id=:id", args={
         'id' : r.post['captcha_user_id']
     })
 
