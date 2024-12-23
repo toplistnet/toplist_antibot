@@ -224,16 +224,12 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
             await redis.zincrby(name="STATS:VALIDATION:FAILED", amount=1, value=r.post['secret'])
             raise ValueError("invalid-input-response")
         
-        captcha_result: dict = {} # TODO: delete backwards compatibility! (rm nojson)
-        if captcha_result_data.startswith('{'):
-            captcha_result = json.loads(s=captcha_result_data)
-            ip = captcha_result['ip']
-        
-            if 'extra' in r.post:
-                response['captcha_type'] = captcha_result['captcha_type']
-        else:
-            ip = captcha_result_data
+        captcha_result: dict = json.loads(s=captcha_result_data)
+        ip = captcha_result['ip']
 
+        if 'extra' in r.post:
+            response['captcha_type'] = captcha_result['captcha_type']
+        
         if 'ip' in r.post:
             response['ip'] = r.post['ip'] == ip
         
