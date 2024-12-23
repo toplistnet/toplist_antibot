@@ -120,11 +120,11 @@ async def route_gen_captcha(r: Request) -> Response:
         })
     elif captcha_type == 2:
         await redis.set(name=f"captcha_{_id}", value=json.dumps(obj=data['data']), ex=60*10)
-        print(f"c2 SHOULD BE {data['data']}")
     else:
         return ResponseError(status_code=403, message="Unknown captcha_type")
     
     html: str = await jinja2.render(path=captchas[data['type']]['template'], **context)
+    await redis.zincrby(name="IPSTATS:CAPTCHA:GENERATED", amount=1, value=r.ip)
     return ResponseHTML(content=html)
     
 @app.route("/captcha/validate", methods=['POST'])
@@ -158,12 +158,18 @@ async def web_validate_captcha(r: Request) -> Response:
 
     finally:
         if 'error' in validation:
-            await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=r.post['sitekey'])
+            await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=post['sitekey'])
+            await redis.zincrby(name="IPSTATS:CAPTCHA:FAILED", amount=1, value=r.ip)
             return ResponseJSON(content=validation)
 
-        result_token: str = utils.FastHash(input=f"{r.post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
-        await redis.set(name=f"captcha_result_{result_token}", value=r.ip, ex=60*10)
-        await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=r.post['sitekey'])
+        result_token: str = utils.FastHash(input=f"{post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
+        await redis.set(name=f"captcha_result_{result_token}", value=json.dumps(obj={
+            "ip" : r.ip,
+            "captcha_type" : post['captcha_type'],
+        }), ex=60*10)
+
+        await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=post['sitekey'])
+        await redis.hincrby(name="IPSTATS:CAPTCHA:SUCCESS", amount=1, key=r.ip)
 
         return ResponseJSON(content={
             'status' : True,
@@ -192,6 +198,7 @@ async def route_display_captcha_test(r: Request) -> Response:
 
 @app.route("/captcha/api/siteverify", methods=['POST'])
 async def route_captcha_api_siteverify(r: Request) -> Response:
+    ip: str = ""
     response: dict = {
         "success" : False, 
         "error-codes" : [],
@@ -206,31 +213,52 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
         if not await redis.sismember(name="SECRETKEYS", value=r.post['secret']):
             raise ValueError("invalid-input-secret")
         
-        ip: bytes = await redis.getdel(name=f"captcha_result_{r.post['response']}") or b''
-        if not ip:
+        b_captcha_result_data = await redis.getdel(name=f"captcha_result_{r.post['response']}") or b''
+        captcha_result_data: str = ""
+        if type(b_captcha_result_data) == bytes:
+            captcha_result_data = b_captcha_result_data.decode()
+        elif type(b_captcha_result_data) == str:
+            captcha_result_data = b_captcha_result_data
+
+        if not len(captcha_result_data):
             await redis.zincrby(name="STATS:VALIDATION:FAILED", amount=1, value=r.post['secret'])
             raise ValueError("invalid-input-response")
         
-        if 'ip' in r.post:
-            response['ip'] = r.post['ip'] == ip.decode()
+        captcha_result: dict = {} # TODO: delete backwards compatibility! (rm nojson)
+        if captcha_result_data.startswith('{'):
+            captcha_result = json.loads(s=captcha_result_data)
+            ip = captcha_result['ip']
+        
+            if 'extra' in r.post:
+                response['captcha_type'] = captcha_result['captcha_type']
+        else:
+            ip = captcha_result_data
 
+        if 'ip' in r.post:
+            response['ip'] = r.post['ip'] == ip
+        
+        await redis.zincrby(name="IPSTATS:VALIDATION:SUCCESS", amount=1, value=ip)
         await redis.zincrby(name="STATS:VALIDATION:SUCCESS", amount=1, value=r.post['secret'])
-        response["success"] = True
         # TODO: risk score calculation
         # TODO: add proxycheck information?
+        response["success"] = True
 
     except ValueError as e:
         response['error-codes'].append(str(object=e))
 
     finally:
         if 'ip' in r.post and 'ip' not in response:
-            response['ip'] = True
+            response['ip'] = False
 
         if 'extra' in r.post:
-            response['captcha_type'] = 0
-            response['captchas'] = 0
-            response['valid'] = 0
-            response['invalid'] = 0
+            response['captcha_type'] = int(response.get('captcha_type', 0))
+
+            captchas = await redis.zscore(name="IPSTATS:CAPTCHA:GENERATED", value=ip) or 0
+            response['captchas'] = int(captchas)
+            valid = await redis.zscore(name="IPSTATS:VALIDATION:SUCCESS", value=ip) or 0
+            response['valid'] = int(valid)
+            invalid = await redis.zscore(name="IPSTATS:CAPTCHA:FAILED", value=ip) or 0
+            response['invalid'] = int(invalid)
 
         return ResponseJSON(content=response)
 
@@ -370,12 +398,12 @@ async def route_api_account_stats(r: Request) -> Response:
     
     stats: dict = {
         'captchas' : {
-            'success' : await redis.zscore(name="STATS:CAPTCHA:SUCCESS", value=data['sitekey']) or 0,
-            'failed' : await redis.zscore(name="STATS:CAPTCHA:FAILED", value=data['sitekey']) or 0,
+            'success' : int(await redis.zscore(name="STATS:CAPTCHA:SUCCESS", value=data['sitekey']) or 0),
+            'failed' : int(await redis.zscore(name="STATS:CAPTCHA:FAILED", value=data['sitekey']) or 0),
         },
         'validations' : {
-            'success' : await redis.zscore(name="STATS:VALIDATION:SUCCESS", value=data['secretkey']) or 0,
-            'failed' : await redis.zscore(name="STATS:VALIDATION:FAILED", value=data['secretkey']) or 0,
+            'success' : int(await redis.zscore(name="STATS:VALIDATION:SUCCESS", value=data['secretkey']) or 0),
+            'failed' : int(await redis.zscore(name="STATS:VALIDATION:FAILED", value=data['secretkey']) or 0),
         },
         'hosts' : list(await redis.smembers(name=f"HOSTS:{r.post['captcha_user_id']}")),
     }

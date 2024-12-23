@@ -64,8 +64,7 @@ def Generate() -> dict[str, str | int | dict]:
                 else:
                     retries += 1
                     if retries >= 300:
-                        if int(utils.Config(key='debug', default="0")):
-                            print("Captcha 2 Error: Reached max retries")
+                        utils.dprint("Captcha 2 Error: Reached max retries")
                         return { 'status' : False, 'error' : 'Error, captcha2 not placed_successfully' }
 
             if newCoords:
@@ -109,7 +108,7 @@ def Validate(db_data: dict, post_data: dict) -> None:
     if not utils.IsPointInCircle(point_circle_center=utils.Point(x=db_data['x'], y=db_data['y']), 
                             point_click=utils.Point(x=post_data['click'][0], y=post_data['click'][1]),
                             radius=db_data['r']):
-        print(f"Error: Click not in circle, {db_data} {post_data['click']}")
+        utils.dprint(f"Error: Click not in circle, {db_data} {post_data['click']}")
         raise ValueError('failed')
 
 if __name__ == '__main__':

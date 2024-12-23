@@ -82,7 +82,9 @@ function praseMsg(msg) {
     if (msg.indexOf('captcha_url;') === 0) {
         var parts = msg.split(';');
         var element_name = parts[1];
-        var url = parts[2];
+        
+        var url = document.querySelector('script[src$="/assets/captcha.js"]').src
+        url = url.replace('/assets/captcha.js', parts[2]);
         url += "?element_name=" + element_name;
 
         var modalDiv = document.createElement('div');

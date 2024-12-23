@@ -73,8 +73,8 @@ def Generate() -> dict[str, str | int | list]:
         placed_successfully: bool = PlaceOneIcon(bg=bg, icon=icon, icon_coordinates=icon_coordinates, 
                                            icon_collection_img=icons_img, fake=fake_icon == icon_path)
         if not placed_successfully:
-            print("Error, captcha1 not placed_successfully")
-            print(f"{bg} {icons} {fake_icon} {icon}")
+            dprint("Error, captcha1 not placed_successfully")
+            dprint(f"{bg} {icons} {fake_icon} {icon}")
             return { 'status' : False, 'error' : 'Error, captcha1 not placed_successfully' }
         
     buffered = BytesIO()
@@ -119,9 +119,7 @@ def Validate(db_data: dict, post_data: dict) -> None:
                             w=rect_data['w'], h=rect_data['h'], padding = TOLLERENCE)
         click: Point = Point(x=clicks[index][0], y=clicks[index][1])
         if not rect.IsIn(p=click):
-            if int(Config(key='debug')): # TODO: logging, analyzing
-                print(f"USER ERR:    click[{index}] not in {clicks[index]} | {rect_data} | {rect}")
-
+            dprint(f"USER ERR:    click[{index}] not in {clicks[index]} | {rect_data} | {rect}")
             raise ValueError('failed')
         
         index += 1

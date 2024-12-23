@@ -57,9 +57,6 @@ def Config(key, default = '') -> str | int:
 def Cached_Glob(pattern) -> list[str]:
     from glob import glob
     return glob(pathname=pattern)
-
-def GetForwardUrl() -> str | int:
-    return Config(key='voted_url', default='?')
     
 def stacktrace() -> str:
     import traceback, sys
@@ -194,3 +191,7 @@ def ValidateHosts(input: str) -> set:
     if True: # TODO: FIXME
             hosts.add(host)
     return hosts
+
+def dprint(*args, **kwargs) -> None:
+    if int(Config(key='debug', default="0")):
+        print(*args, **kwargs)
