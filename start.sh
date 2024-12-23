@@ -1,4 +1,4 @@
 #!/bin/bash
-while ! python3 main.py antibot-server; do
+while ! uvicorn main_new:app; do
     echo "restarting.."
 done

@@ -1,10 +1,11 @@
 import cachetools.func
-from PIL import Image
 import math
+import os
+import pickle
 from PIL import Image, ImageDraw
 import numpy as np 
-import pickle
-import os
+import xxhash
+import re
 
 class Point(object):
     def __init__(self, x: int, y: int) -> None:
@@ -39,7 +40,7 @@ def IsPointInCircle(point_circle_center: Point, point_click: Point, radius: int)
     dist: float = math.sqrt((point_circle_center.x - point_click.x) ** 2 + (point_circle_center.y - point_click.y) ** 2)
     return dist <= radius
 
-@cachetools.func.ttl_cache(maxsize=128, ttl=10*60)
+@cachetools.func.ttl_cache(maxsize=1024, ttl=10*60)
 def Config(key, default = '') -> str | int:
     import configparser
     from os.path import isfile
@@ -52,13 +53,12 @@ def Config(key, default = '') -> str | int:
     v: str = config['DEFAULT'][key] if key in config['DEFAULT'] else default
     return int(v) if str(object=v).isdigit() else v
 
-@cachetools.func.ttl_cache(maxsize=128, ttl=10*60)
-def Cached_Glob(pattern):
+@cachetools.func.ttl_cache(maxsize=512, ttl=30*60)
+def Cached_Glob(pattern) -> list[str]:
     from glob import glob
     return glob(pathname=pattern)
 
-@cachetools.func.ttl_cache(maxsize=1, ttl=10*60)
-def GetForwardUrl(url: str) -> str | int:
+def GetForwardUrl() -> str | int:
     return Config(key='voted_url', default='?')
     
 def stacktrace() -> str:
@@ -69,9 +69,9 @@ def stacktrace() -> str:
         del stack[-1]       # remove call of full_stack, the printed exception
                             # will contain the caught exception caller instead
     trc = 'Traceback (most recent call last):\n'
-    stackstr = trc + ''.join(traceback.format_list(stack))
+    stackstr: str = trc + ''.join(traceback.format_list(extracted_list=stack))
     if exc is not None:
-         stackstr += '  ' + traceback.format_exc().lstrip(trc)
+         stackstr += '  ' + traceback.format_exc().lstrip(chars=trc)
     return stackstr
 
 def get_linenumber() -> int:
@@ -80,14 +80,14 @@ def get_linenumber() -> int:
     return cf.f_back.f_lineno
 
 @cachetools.func.ttl_cache(maxsize=50, ttl=20*60)
-def GetCachedPILImage(path: str, convert: str) -> Image:
+def GetCachedPILImage(path: str, convert: str) -> Image.Image:
     im = Image.open(fp=path)
     im = im.convert(convert)
     return im
     
-def CropCircle(img: Image, resize: tuple = None) -> Image:
+def CropCircle(img: Image.Image, resize: tuple | None) -> Image.Image:
     if resize:
-        img = img.resize(resize)        
+        img = img.resize(size=resize)        
     npImage=np.array(object=img)
     h,w=img.size
     alpha = Image.new(mode='L', size=img.size,color=0)
@@ -95,12 +95,11 @@ def CropCircle(img: Image, resize: tuple = None) -> Image:
     draw.pieslice([0,0,h,w],0,360,fill=255)
     npAlpha = np.array(object=alpha)
     npImage = np.dstack(tup=(npImage,npAlpha))
-    img = Image.fromarray(npImage)
+    img = Image.fromarray(obj=npImage)
     return img
 
-ICON_DATASET = None
-def PrepareDataset():
-    import os
+ICON_DATASET: dict = {}
+def PrepareDataset() -> None:
     if not (os.path.isdir(s='res/cifar-10-batches-py') or os.path.isfile(path='res/cifar-10-python.tar.gz')):
         os.system(command='wget -c https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz -O res/cifar-10-python.tar.gz')
     
@@ -110,8 +109,7 @@ def PrepareDataset():
     
     global ICON_DATASET
     with open(file='res/cifar-10-batches-py/data_batch_3', mode='rb') as fo:
-        import pickle
-        data = pickle.load(file=fo, encoding='bytes')
+        data: dict = pickle.load(file=fo, encoding='bytes')
         ICON_DATASET = data[b'data']
    
     if not (os.path.isdir(s='res/bgs') and os.path.isdir('res/bgs/test_lmdb') and os.path.isfile(path='res/bgs/test_lmdb.zip')):
@@ -126,12 +124,12 @@ def PrepareDataset():
         print('no dir found so extracting zip \n')
         os.system(command='cd res/bgs && unzip -o test_lmdb.zip && cd ../../')
         
-        db_path = 'res/bgs/test_lmdb/'
-        out_dir = 'res/bgs/'
-        flat=False
-        limit=-1
+        db_path: str = 'res/bgs/test_lmdb/'
+        out_dir: str = 'res/bgs/'
+        flat: bool = False
+        limit: int = -1
                 
-        import lmdb        
+        import lmdb
         print('Exporting', db_path, 'to', out_dir)
         env = lmdb.open(db_path, map_size=1099511627776,
                         max_readers=100, readonly=True)
@@ -153,17 +151,46 @@ def PrepareDataset():
                     break
                 if count % 1000 == 0:
                     print('Finished', count, 'images')
-                    
-def SaveToTempFile(filename: str, obj) -> None:
-    with open(file=filename, mode='wb') as f:
-        pickle.dump(obj=obj, file=f, protocol=pickle.HIGHEST_PROTOCOL)
-        
-def LoadFromTempFile(filename: str) -> dict:
-    if os.path.isfile(path=filename):
-        f = open(file=filename, mode='rb')
-        obj: dict = pickle.load(file=f)
-        f.close()
-        os.remove(path=filename)
-        return obj
-    return {}
+
+import random         
+def GenerateBG(path) -> Image.Image:
+    # TODO: cache opening of bgs (30% of generation performance)
+    with Image.open(fp=path) as img:
+        img: Image.Image = img.convert(mode='RGBA')
+        resize: int = random.randint(a=4, b=11)
+        img = img.resize((int(img.width/resize), int(img.height/resize)))
+        img = img.resize(size=(300, 300), resample=Image.NEAREST) # type: ignore
+        color: str = random.choice(seq=['blue', 'purple', 'gray', 'black', 'white'])
+        layer: Image.Image = Image.new(mode='RGBA', size=img.size, color=color) # type: ignore
+        img = Image.blend(im1=img, im2=layer, alpha=random.randint(a=15, b=50) / 100.0)
     
+        return img                 
+        
+def GenerateCircleIcon() -> Image.Image:
+    global ICON_DATASET
+    im = ICON_DATASET[random.randint(a=0, b=len(ICON_DATASET) - 1), :]
+    im_r = im[0:1024].reshape(32, 32)
+    im_g = im[1024:2048].reshape(32, 32)
+    im_b = im[2048:].reshape(32, 32)
+    img_array = np.dstack(tup=(im_r, im_g, im_b))
+    img: Image.Image = Image.fromarray(obj=img_array)
+    return CropCircle(img=img, 
+                        resize=(img.width + random.randint(a=8, b=30), 
+                        img.height + random.randint(a=8, b=30)))
+
+def FastHash(input: str | int) -> str:
+    return xxhash.xxh64(str(object=input)).hexdigest()
+
+def ValidateHosts(input: str) -> set:
+    hosts = set()
+    for _host in input.split(sep=','):
+        host: str = _host.strip()
+    #     if re.match(pattern=
+    # r'/^((?!-))(xn--)?[a-z0-9][a-z0-9-_]{0,61}[a-z0-9]{0,1}\.(xn--)?([a-z0-9\-]{1,61}|[a-z0-9-]{1,30}\.[a-z]{2,})$/', 
+    #                 string=host) or \
+    #         re.match(pattern=
+    # r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):\d{1,5}\b', 
+    #                 string=host):
+    if True: # TODO: FIXME
+            hosts.add(host)
+    return hosts

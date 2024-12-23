@@ -1,10 +1,11 @@
 ﻿<!DOCTYPE html>
-<html lang="{{ post_data.locale }}">
+<html lang="{{ locale }}">
 <head>
     <meta charset="UTF-8">
 	<link rel="icon" type="image/png" href="https://metin2pserver.net/assets/img/fav.png" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>{{ translate(post_data.locale, 'AntiBot Check') }}</title>
+	<meta name="color-scheme" content="light dark">
+    <title>{{ Translate(locale, 'AntiBot Check') }}</title>
     <style>
 		body {
 			font-family: 'Source Sans Pro',sans-serif;
@@ -112,8 +113,8 @@
 <body>
 	<div class="card">
 		<div class="card-header">
-			<h1>{{ translate(post_data.locale, 'AntiBot Check') }}</h1>
-			<div id="refresh" title="{{ translate(post_data.locale, 'Reload') }}"></div>
+			<h1>{{ Translate(locale, 'AntiBot Check') }}</h1>
+			{# <div id="refresh" title="{{ Translate(locale, 'Reload') }}"></div> #}
 		</div>
 		<div class="card-outter">
 			<div class="card-body">
@@ -122,26 +123,10 @@
 		</div>
 		<div class="card-footer">
 			<div class="card-bottom-wrap">
-				<span>{{ translate(post_data.locale, 'Click on the object that appears only once!') }}</span>
+				<span>{{ Translate(locale, 'Click on the object that appears only once!') }}</span>
 			</div>
 		</div>
 	</div>
-	
-	<form action="{{ forward_url }}" method="POST" id="vote">
-		<input type="hidden" name="id" value="{{ id }}">
-		<input type="hidden" name="captcha" value="{{ captcha }}">
-		<input type="hidden" name="click" value="">
-		{% for k,v in post_data.items() -%}
-		<input type="hidden" name="{{ k }}" value="{{ v }}">
-		{% endfor -%}
-		<input type="submit" style="display: none">
-	</form>
-	
-	<form method="POST" id="refresh_form">
-		{% for k,v in post_data.items() -%}
-		<input type="hidden" name="{{ k }}" value="{{ v }}">
-		{% endfor -%}
-	</form>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js" integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 	<script>
@@ -150,34 +135,47 @@
 				$('.card').addClass('shake');
 				setTimeout(function() {
 					$('.card').removeClass('shake');
-					$('form#refresh_form').submit();
+					window.location.reload();
 				}, 400);
 			}
+
+			$('.card-im').mousemove(function(e) {
+				var offset = $(this).offset();
+				var x = e.pageX - offset.left;
+				var y = e.pageY - offset.top;
+				// TODO: make marker follow mouse... ready to drop
+			});
 
 			$('.card-im').click(function(e) {
 				var offset = $(this).offset();
 				var x = e.pageX - offset.left;
 				var y = e.pageY - offset.top;
-				$("input[name=click]").attr('value', JSON.stringify([x,y]));
-				
-				var datas = $("form#vote").serializeArray();
-				datas.push({'test':1});
-				datas.push({'name':'test', 'value':1});
-				$.ajax({
-					type: "POST",
-					url: "/validate",
-					data: datas,
-				}).done(function(data) {
+								
+				var element = "{{ element_name }}";
+				var payload = {
+					captcha_id: {{ captcha_id }}, 
+					timestamp: {{ timestamp }},
+					sitekey: '{{ sitekey }}',
+					hash: '{{ hash }}',
+					captcha_type: 2,
+					click: JSON.stringify([x,y]),
+				};
+
+				$.post('/captcha/validate', payload, function(data) {
 					if (data['status'] == false)
 						fail();
-					else
-						$("form#vote").submit();
+					else if (data['status'] == true)
+						window.top.postMessage('captcha_done;' + element + ";" + data['result'], '*');
 				});
 			});
 
 			$('#refresh').click(function() {
-				$('form#refresh_form').submit();
+				fail();
 			});
+			
+			setTimeout(function() {
+				fail();
+			}, 60*3*1000);
 		});
 	</script>
 </body>

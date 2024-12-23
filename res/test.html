@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>reCAPTCHA demo: Simple page</title>
+    <script src="assets/captcha.js" async defer></script>
+    <script>
+
+    </script>
+    <style>
+        body {
+            background-color: darkslategrey;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Captcha demo: Simple page</h1>
+    <p>This is a simple demonstration of how to use the Captcha API.</p>
+    <p>For more information, see the <a href="https://metin2pserver.net/captcha">Captcha developer documentation</a>.
+    </p>
+    <form action="/test" method="POST">
+        <div class="g-recaptcha" data-sitekey="your_sitekey"></div>
+        <input type="text" name="some_post_field_name" value="some_post_field_value" placeholder="some post data"
+            readonly><br>
+        <input type="text" name="secret" value="" placeholder="secret-key"><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+
+</html>
