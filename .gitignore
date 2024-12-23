@@ -3,7 +3,9 @@ config.cfg
 .*
 *.log
 *.png
-*.jpeg
+out.jpg
+test_icons.png
+test.jpeg
 res/*.gz
 res/bgs/*
 res/cifar-10-batches-py/*
