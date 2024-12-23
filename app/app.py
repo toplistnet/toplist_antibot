@@ -1,6 +1,5 @@
 import sys
 sys.dont_write_bytecode = True
-from anyio import value
 from muffin import Application
 # TODO: add sentry
 from app.tools.utils import Config

@@ -16,3 +16,4 @@ cachetools
 sentry-sdk
 muffin-sentry
 aiohttp
+uvicorn
