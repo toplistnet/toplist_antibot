@@ -17,3 +17,5 @@ sentry-sdk
 muffin-sentry
 aiohttp
 uvicorn
+aquiche
+aiomysql
