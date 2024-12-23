@@ -377,7 +377,7 @@ async def route_api_account_stats(r: Request) -> Response:
             'success' : await redis.zscore(name="STATS:VALIDATION:SUCCESS", value=data['secretkey']) or 0,
             'failed' : await redis.zscore(name="STATS:VALIDATION:FAILED", value=data['secretkey']) or 0,
         },
-        'hosts' : await redis.smembers(name=f"HOSTS:{r.post['captcha_user_id']}"),
+        'hosts' : list(await redis.smembers(name=f"HOSTS:{r.post['captcha_user_id']}")),
     }
 
     return ResponseJSON(content=stats)
