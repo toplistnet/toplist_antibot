@@ -3,7 +3,6 @@ config.cfg
 .*
 *.log
 *.png
-*.jpg
 *.jpeg
 res/*.gz
 res/bgs/*
