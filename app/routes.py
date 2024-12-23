@@ -182,10 +182,11 @@ async def route_display_captcha_test(r: Request) -> Response:
                     'remoteip': r.ip,
                 }
     
-    # async with aiohttp.ClientSession() as sess:
-        # async with sess.post(url=Config() + "/captcha/api/siteverify", data=payload) as resp:
-            # data: dict = await resp.json() or {}
-            # return ResponseJSON(content={'POST_DATA' : r.post, 'captcha_verify' : data})
+    async with aiohttp.ClientSession() as sess:
+        url: str = f"{utils.Config(key='url')}captcha/api/siteverify"
+        async with sess.post(url=url, data=payload) as resp:
+            data: dict = await resp.json() or {}
+            return ResponseJSON(content={'POST_DATA' : r.post, 'captcha_verify' : data})
 
     return ResponseJSON(content=r.post)
 
