@@ -48,7 +48,7 @@ async def my_middleware(app_func: Application, request: Request, receive, send) 
     
     response: Response|None = await app_func(request, receive, send)
     if type(response) == Response:
-        response.headers['server'] = "captcha_server" # TODO: validate on live settings
+        response.headers['server'] = "captcha_server"
 
     return response
 

@@ -7,6 +7,8 @@ import numpy as np
 import xxhash
 import re
 import json
+import random
+from copy import copy
 
 class Point(object):
     def __init__(self, x: int, y: int) -> None:
@@ -150,9 +152,15 @@ def PrepareDataset() -> None:
                 if count % 1000 == 0:
                     print('Finished', count, 'images')
 
-import random         
+# g_imgBGs: dict[str, Image.Image] = {}
+# def GetCachedBaseBG(path) -> Image.Image:
+#     global g_imgBGs
+#     if path not in g_imgBGs:
+#         g_imgBGs[path] = Image.open(fp=path)
+#     return g_imgBGs[path]
+
 def GenerateBG(path) -> Image.Image:
-    # TODO: cache opening of bgs (30% of generation performance)
+    # img = copy(GetCachedBaseBG(path=path)) # caching those is a bad idea while 5k imgs
     with Image.open(fp=path) as img:
         img: Image.Image = img.convert(mode='RGBA')
         resize: int = random.randint(a=4, b=11)
@@ -161,7 +169,6 @@ def GenerateBG(path) -> Image.Image:
         color: str = random.choice(seq=['blue', 'purple', 'gray', 'black', 'white'])
         layer: Image.Image = Image.new(mode='RGBA', size=img.size, color=color) # type: ignore
         img = Image.blend(im1=img, im2=layer, alpha=random.randint(a=15, b=50) / 100.0)
-    
         return img                 
         
 def GenerateCircleIcon() -> Image.Image:
@@ -180,17 +187,19 @@ def FastHash(input: str | int) -> str:
     return xxhash.xxh64(str(object=input)).hexdigest()
 
 def ValidateHosts(input: str) -> set:
+    if len(input) > 150:
+        return set()
+    
+    patterns: set = {
+        r'^(?=.{1,253}\.?$)(?:(?!-|[^.]+_)[A-Za-z0-9-_]{1,63}(?<!-)(?:\.|$)){2,}$',
+r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):\d{1,5}\b', 
+    }
     hosts = set()
     for _host in input.split(sep=','):
         host: str = _host.strip()
-    #     if re.match(pattern=
-    # r'/^((?!-))(xn--)?[a-z0-9][a-z0-9-_]{0,61}[a-z0-9]{0,1}\.(xn--)?([a-z0-9\-]{1,61}|[a-z0-9-]{1,30}\.[a-z]{2,})$/', 
-    #                 string=host) or \
-    #         re.match(pattern=
-    # r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):\d{1,5}\b', 
-    #                 string=host):
-    if True: # TODO: FIXME
-            hosts.add(host)
+        for pattern in patterns:
+            if re.match(pattern=pattern, string=host) != None:
+                hosts.add(host)
     return hosts
 
 def dprint(*args, **kwargs) -> None:

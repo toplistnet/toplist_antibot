@@ -127,33 +127,6 @@ async def route_api_account_remove(r: Request) -> Response:
     
     return ResponseJSON(content={"status" : True})
 
-@app.route("/api/account/regenerate", methods=['POST'])
-async def route_api_account_regenerate(r: Request) -> Response:
-    if not r.headers.get("Authorization") == f"Bearer {utils.Config(key='api_key', default='_ADMIN78_12_21')}":
-        return ResponseJSON(content={"status" : False, "error" : "unauthorized"})
-    
-    if not r.post.keys() >= {'captcha_user_id'}:
-        return ResponseJSON(content={"status" : False, "error" : "missing parameters"})
-    
-    user: dict = await db.queryRowDict(query="SELECT * FROM captcha_users WHERE id=:id", args={
-        'id' : r.post['captcha_user_id']
-    })
-    if not user:
-        return ResponseJSON(content={"status" : False, "error" : "user not found"})
-    
-    # TODO: copy ranking to new sitekey
-    await redis.srem("SITEKEYS", user['sitekey'])
-    await redis.srem("SECRETKEYS", user['secretkey'])
-    await redis.zrem("STATS:CAPTCHA:SUCCESS", user['sitekey'])
-    await redis.zrem("STATS:CAPTCHA:FAILED", user['sitekey'])
-    await redis.delete(f"HOSTS:{user['sitekey']}")
-
-    sitekey: str = utils.FastHash(input=f"{user['email']}_{app.cfg.name}_{time.time()}")
-    secretkey: str = utils.FastHash(input=f"SECRET_KEY_{sitekey}_{app.cfg.name}")
-    await redis.set(f"HOSTS:{sitekey}", *user['hosts'].split(','))
-            
-    return ResponseJSON(content={"status" : True})
-
 @app.route("/api/account/hosts", methods=['POST'])
 async def route_api_account_hosts(r: Request) -> Response:
     if not r.headers.get("Authorization") == f"Bearer {utils.Config(key='api_key', default='_ADMIN78_12_21')}":
