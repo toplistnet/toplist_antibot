@@ -75,7 +75,7 @@ function resetCaptchaButtonTimeout(iframe, element_name) {
         if (document.querySelector('#modal-' + element_name))
             document.querySelector('#modal-' + element_name).remove();
         resetCaptchaButtonTimeout(iframe, element_name);
-    }, 1000*2); // 2 minutes
+    }, 1000*2*60); // 2 minutes
 }
 
 function praseMsg(msg) {
