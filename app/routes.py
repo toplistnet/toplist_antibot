@@ -27,11 +27,27 @@ captchas: dict = {
         'width' : 500,
         'height' : 500,
     },
+    'stats' : {
+        "captcha_button_rendered": 0,
+        "captcha1_rendered": 0,
+        "captcha2_rendered": 0,
+        "captcha1_generated": 0,
+        "captcha2_generated": 0,
+        "captcha1_validations": 0,
+        "captcha2_validations": 0,
+        "captcha1_validations_succeeded": 0,
+        "captcha2_validations_succeeded": 0,
+        "captcha1_validations_failed": 0,
+        "captcha2_validations_failed": 0,
+    },
 }
 
 async def EnsureCaptchaAvailability() -> None:
     global captchas
     for captcha_type, captcha_data in captchas.items():
+        if not str(object=captcha_type).isdigit():
+            continue
+
         while True:
             captchas[captcha_type]['count'] = await redis.scard(name=f"captcha{captcha_type}") or 0
             if captcha_data['count'] >= captcha_data['min_count']:
@@ -40,8 +56,10 @@ async def EnsureCaptchaAvailability() -> None:
             data: dict = captcha_data['generate']()
             if not data['status']:
                 continue
-
+            
             await redis.sadd(f"captcha{captcha_type}", json.dumps(obj=data))
+            captchas['stats'][f"captcha{captcha_type}_generated"] = \
+                await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_generated")
 
 async def AfterRequest() -> None:
     await EnsureCaptchaAvailability()
@@ -75,8 +93,11 @@ async def route_captcha_button(r: Request) -> Response:
         "sitekey" : sitekey,
         "sitekey_hash" : utils.FastHash(input=f"{sitekey}_allowgeneration_{app.cfg.name}"),
     }
-    html: str = await jinja2.render(path="captcha_button.html", **context)
-    return ResponseHTML(content=html)
+
+    captchas['stats'][f"captcha_button_rendered"] = \
+        await redis.zincrby(name="STATS:GENERAL", amount=1, value="captcha_button_rendered")
+
+    return ResponseHTML(content=await jinja2.render(path="captcha_button.html", **context))
 
 @app.route("/captcha/display/{sitekey:str}/{sitekey_hash:str}", methods=['GET'])
 async def route_gen_captcha(r: Request) -> Response:
@@ -121,6 +142,9 @@ async def route_gen_captcha(r: Request) -> Response:
     
     html: str = await jinja2.render(path=captchas[data['type']]['template'], **context)
     await redis.zincrby(name="IPSTATS:CAPTCHA:GENERATED", amount=1, value=r.ip)
+
+    captchas['stats'][f"captcha{captcha_type}_rendered"] = \
+        await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_rendered")
     return ResponseHTML(content=html)
     
 @app.route("/captcha/validate", methods=['POST'])
@@ -132,19 +156,24 @@ async def web_validate_captcha(r: Request) -> Response:
         if not post.keys() >= {'captcha_id', 'captcha_type', 'hash', 'timestamp', 'sitekey'}:
             raise ValueError("missing parameters")
         
-        c_hash: str = utils.FastHash(input=f"{post['captcha_id']}_{post['captcha_type']}_{post['timestamp']}_{post['sitekey']}")
+        captcha_type: int = int(post['captcha_type'])
+
+        c_hash: str = utils.FastHash(input=f"{post['captcha_id']}_{captcha_type}_{post['timestamp']}_{post['sitekey']}")
         if c_hash != post['hash']:
             raise ValueError("hash mismatch")
     
         db_data_str: bytes = await redis.getdel(name=f"captcha_{post['captcha_id']}") or b'{}'
 
-        if not post['captcha_type'] in captchas:
+        if not captcha_type in captchas:
             raise ValueError("unknown captcha_type")
         elif not db_data_str:
             raise ValueError("captcha data not found")
         
+        captchas['stats'][f"captcha{captcha_type}_validations"] = \
+            await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_validations")
+        
         db_data: dict = json.loads(s=db_data_str)
-        captchas[post['captcha_type']]['validate'](db_data=db_data, post_data=post)
+        captchas[captcha_type]['validate'](db_data=db_data, post_data=post)
 
     except ValueError as e:
         validation['error'] = str(object=e)
@@ -156,17 +185,21 @@ async def web_validate_captcha(r: Request) -> Response:
         if 'error' in validation:
             await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=post['sitekey'])
             await redis.zincrby(name="IPSTATS:CAPTCHA:FAILED", amount=1, value=r.ip)
+            captchas['stats'][f"captcha{captcha_type}_validations_failed"] = \
+                await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_failed")
             return ResponseJSON(content=validation)
 
         result_token: str = utils.FastHash(input=f"{post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
         await redis.set(name=f"captcha_result_{result_token}", value=json.dumps(obj={
             "ip" : r.ip,
-            "captcha_type" : post['captcha_type'],
+            "captcha_type" : captcha_type,
         }), ex=60*10)
 
         await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=post['sitekey'])
         await redis.hincrby(name="IPSTATS:CAPTCHA:SUCCESS", amount=1, key=r.ip)
-
+        captchas['stats'][f"captcha{captcha_type}_validations_succeeded"] = \
+            await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_succeeded")
+        
         return ResponseJSON(content={
             'status' : True,
             'result' : result_token,

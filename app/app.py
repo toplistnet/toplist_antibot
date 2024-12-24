@@ -13,7 +13,6 @@ redis_pool: redispy.BlockingConnectionPool = redispy.BlockingConnectionPool.from
                                                                                      max_connections=300)
 redis = redispy.StrictRedis(connection_pool=redis_pool)
 
-
 from app.tools.database import Database
 user: str = str(object=Config(key='db_user'))
 password: str = str(object=Config(key='db_pass'))

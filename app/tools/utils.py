@@ -197,7 +197,7 @@ def dprint(*args, **kwargs) -> None:
     if int(Config(key='debug', default="0")):
         print(*args, **kwargs)
 
-def safe_serialize(obj, html=True) -> str:
+def safe_serialize(obj, html=True, sort_keys=True) -> str:
   _filter = lambda o: f"<{type(o).__qualname__}>"
   _s: str = json.dumps(obj=obj, default=_filter, indent=4)
   if html:
