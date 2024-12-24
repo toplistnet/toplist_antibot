@@ -24,6 +24,7 @@ db = Database(app=app, connection_string=f"mysql://{user}:{password}@{host}:{por
 
 from app.tools.localization import Localization
 localization = Localization()
+app.on_startup(fn=localization.Load)
 
 import muffin_jinja2
 jinja2 = muffin_jinja2.Plugin()
@@ -31,3 +32,4 @@ jinja2.setup(app=app, template_folders=["res"], auto_reload=True, cache_size=100
 jinja2.add_global(obj=localization.Translate)
 
 from app.routes import *
+from app.api import *
