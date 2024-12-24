@@ -73,8 +73,10 @@ async def route_home(r: Request) -> Response:
         if not str(object=captcha_type).isdigit():
             continue
         
+        succeeded: int = captchas['stats'][f'captcha{captcha_type}_validations_succeeded']
+        failed: int = captchas['stats'][f'captcha{captcha_type}_validations_failed']
         captchas['stats'][f'captcha{captcha_type}_validations_ratio'] = \
-            f"{(captchas['stats'][f'captcha{captcha_type}_validations_succeeded'] / captchas['stats'][f'captcha{captcha_type}_validations']) * 100:.2f}%"
+            f"{(succeeded/failed):.2f}%"
 
     return ResponseHTML(content=utils.safe_serialize(obj=captchas))
 
