@@ -39,6 +39,8 @@ captchas: dict = {
         "captcha2_validations_succeeded": 0,
         "captcha1_validations_failed": 0,
         "captcha2_validations_failed": 0,
+        "captcha1_validations_ratio": 0,
+        "captcha2_validations_ratio": 0,
     },
 }
 
@@ -67,6 +69,13 @@ async def AfterRequest() -> None:
 
 @app.route('/stats', methods=['GET'])
 async def route_home(r: Request) -> Response:
+    for captcha_type, captcha_data in captchas.items():
+        if not str(object=captcha_type).isdigit():
+            continue
+        
+        captchas['stats'][f'captcha{captcha_type}_validations_ratio'] = \
+            f"{(captchas['stats'][f'captcha{captcha_type}_validations_succeeded'] / captchas['stats'][f'captcha{captcha_type}_validations']) * 100:.2f}%"
+
     return ResponseHTML(content=utils.safe_serialize(obj=captchas))
 
 @app.route('/captcha/button/{sitekey:str}', methods=['GET'])
