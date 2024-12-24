@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="{{ locale }}">
-
 <head>
     <link rel="icon" type="image/png" href="https://metin2pserver.net/assets/img/fav.png" />
     <style>
@@ -16,19 +15,15 @@
             0% {
                 transform: translateX(0);
             }
-
             25% {
                 transform: translateX(-5px);
             }
-
             50% {
                 transform: translateX(5px);
             }
-
             75% {
                 transform: translateX(-5px);
             }
-
             100% {
                 transform: translateX(0);
             }
@@ -38,19 +33,15 @@
             0% {
                 -webkit-transform: translateX(0);
             }
-
             25% {
                 -webkit-transform: translateX(-5px);
             }
-
             50% {
                 -webkit-transform: translateX(5px);
             }
-
             75% {
                 -webkit-transform: translateX(-5px);
             }
-
             100% {
                 -webkit-transform: translateX(0);
             }
@@ -301,17 +292,15 @@
         });
     </script>
 </head>
-
 <body>
     <div class="wrapper">
         <div class="checkbox-wrapper-55">
             <label class="rocker rocker-small">
                 <input type="checkbox" class="recapcha-checkbox" required>
-                <span class="switch-left">Human</span>
-                <span class="switch-right">🤖Robot</span>
+                <span class="switch-left">{{ Translate(locale, 'Human') }}</span>
+                <span class="switch-right">🤖{{ Translate(locale, 'Robot') }}</span>
             </label>
         </div>
     </div>
 </body>
-
 </html>
