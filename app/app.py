@@ -33,3 +33,4 @@ jinja2.add_global(obj=localization.Translate)
 
 from app.routes import *
 from app.api import *
+from app.middleware import *
