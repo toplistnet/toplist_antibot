@@ -44,6 +44,11 @@ captchas: dict = {
     },
 }
 
+async def LoadStats() -> None:
+    captchas['stats']["captcha_button_rendered"] = await redis.zscore(name="STATS:GENERAL", value=f"captcha_button_rendered")
+    for name in captchas['stats'].keys():
+        captchas['stats'][name] = int(await redis.zscore(name="STATS:GENERAL", value=name)) # type: ignore
+    
 async def EnsureCaptchaAvailability() -> None:
     global captchas
     for captcha_type, captcha_data in captchas.items():
@@ -241,3 +246,4 @@ async def route_display_captcha_test(r: Request) -> Response:
 
 app.on_startup(fn=utils.PrepareDataset)
 app.on_startup(fn=EnsureCaptchaAvailability)
+app.on_startup(fn=LoadStats)
