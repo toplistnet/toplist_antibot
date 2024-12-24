@@ -69,14 +69,14 @@ async def AfterRequest() -> None:
 
 @app.route('/stats', methods=['GET'])
 async def route_home(r: Request) -> Response:
-    for captcha_type, captcha_data in captchas.items():
+    for captcha_type in captchas.keys():
         if not str(object=captcha_type).isdigit():
             continue
         
-        succeeded: int = captchas['stats'][f'captcha{captcha_type}_validations_succeeded']
-        failed: int = captchas['stats'][f'captcha{captcha_type}_validations_failed']
+        validations_failed: int = captchas['stats'][f'captcha{captcha_type}_validations_failed']
+        validations: int = captchas['stats'][f'captcha{captcha_type}_validations']
         captchas['stats'][f'captcha{captcha_type}_validations_ratio'] = \
-            f"{(max(1,succeeded)/max(1,failed)):.2f}%"
+            f"{(validations / 100) * validations_failed:.2f}%"
 
     return ResponseHTML(content=utils.safe_serialize(obj=captchas))
 
