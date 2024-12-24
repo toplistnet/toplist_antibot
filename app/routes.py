@@ -47,7 +47,7 @@ captchas: dict = {
 async def LoadStats() -> None:
     captchas['stats']["captcha_button_rendered"] = await redis.zscore(name="STATS:GENERAL", value=f"captcha_button_rendered")
     for name in captchas['stats'].keys():
-        captchas['stats'][name] = int(await redis.zscore(name="STATS:GENERAL", value=name)) # type: ignore
+        captchas['stats'][name] = int(await redis.zscore(name="STATS:GENERAL", value=name) or 0)
     
 async def EnsureCaptchaAvailability() -> None:
     global captchas
