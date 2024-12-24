@@ -196,10 +196,9 @@ r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]
     }
     hosts = set()
     for _host in input.split(sep=','):
-        host: str = _host.strip()
         for pattern in patterns:
-            if re.match(pattern=pattern, string=host) != None:
-                hosts.add(host)
+            if re.match(pattern=pattern, string=_host) != None:
+                hosts.add(_host.strip())
     return hosts
 
 def dprint(*args, **kwargs) -> None:
