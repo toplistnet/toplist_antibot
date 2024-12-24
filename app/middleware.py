@@ -19,7 +19,6 @@ def SetLanguage(request: Request) -> None:
     if not lang or lang not in langs:
         lang = request.headers.get("accept-language", default="en")[:2]
     lang = request.cookies.get('lang', lang)
-    lang = request.session.get('lang', lang)
     if not lang or lang not in langs:
         lang = 'en'
 
