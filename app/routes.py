@@ -76,7 +76,7 @@ async def route_home(r: Request) -> Response:
         validations_failed: int = captchas['stats'][f'captcha{captcha_type}_validations_failed']
         validations: int = captchas['stats'][f'captcha{captcha_type}_validations']
         captchas['stats'][f'captcha{captcha_type}_validations_ratio'] = \
-            f"{(validations / 100) * validations_failed:.2f}%"
+            f"{validations/validations_failed*100:.2f}%"
 
     return ResponseHTML(content=utils.safe_serialize(obj=captchas))
 
