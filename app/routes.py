@@ -48,13 +48,12 @@ async def AfterRequest() -> None:
     await EnsureCaptchaAvailability()
     await localization.Save()
 
-@app.route('/')
+@app.route('/stats', methods=['GET'])
 async def route_home(r: Request) -> Response:
-    return ResponseHTML(content=str(object=captchas))
+    return ResponseHTML(content=utils.safe_serialize(obj=captchas))
 
 @app.route('/captcha/button/{sitekey:str}', methods=['GET'])
 async def route_captcha_button(r: Request) -> Response:
-    # TODO: whitelist referrer domains only
     ref: str = r.headers.get("Referer", default="")
     if not ref or '://' not in ref:
         return ResponseError(status_code=403, message="No Direct Access Allowed")
@@ -65,8 +64,6 @@ async def route_captcha_button(r: Request) -> Response:
     
     ref = ref.split("/", 1)[0]
     sitekey: str = r.path_params.get("sitekey", "")
-    # ref_whitelist: tuple = ('t.metin2pserver.net:8099', )
-    # if ref not in ref_whitelist:
     if not await redis.sismember(name=f"HOSTS:{sitekey}", value=ref):
         return ResponseError(status_code=403, message="Host-Domain Not Allowed")
     
@@ -423,6 +420,12 @@ async def my_middleware(app_func: Application, request: Request, receive, send) 
     response: Response|None = await app_func(request, receive, send)
     response.headers['server'] = "captcha_server" # TODO: validate on live settings
     return response
+
+@app.on_error(etype=ResponseError)
+async def process_http_errors(r: Request, response_error) -> Response:
+    if response_error.status_code == 404:
+        return ResponseHTML(status_code=response_error.status_code, content="")
+    return ResponseHTML(content=f"Error: {response_error}")
 
 app.on_startup(fn=utils.PrepareDataset)
 app.on_startup(fn=EnsureCaptchaAvailability)

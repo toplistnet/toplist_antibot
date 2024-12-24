@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 import numpy as np 
 import xxhash
 import re
+import json
 
 class Point(object):
     def __init__(self, x: int, y: int) -> None:
@@ -195,3 +196,19 @@ def ValidateHosts(input: str) -> set:
 def dprint(*args, **kwargs) -> None:
     if int(Config(key='debug', default="0")):
         print(*args, **kwargs)
+
+def safe_serialize(obj, html=True) -> str:
+  _filter = lambda o: f"<{type(o).__qualname__}>"
+  _s: str = json.dumps(obj=obj, default=_filter, indent=4)
+  if html:
+    _s = _s.replace('<', '&lt;').replace('>', '&gt;')
+    _s = _s.replace('\n', '<br>').replace(' ', '&nbsp;')
+    _s += '''<style>
+    body {
+        font-family: monospace;
+        background-color: #333;
+        color: #f0f0f0;
+    }
+    </style>
+    '''
+  return _s
