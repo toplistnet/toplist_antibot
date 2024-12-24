@@ -88,14 +88,14 @@ captcha_class.prototype.render = function(container, parameters) {
     this.renderOneElement(div, sitekey);
 }
 
-captcha_class.prototype.reset(opt_widget_id) = function() {
+captcha_class.prototype.reset = function(opt_widget_id) {
     if (!opt_widget_id || opt_widget_id == null || opt_widget_id == undefined)
         this.renderAll();
     else
         this.render(opt_widget_id);
 }
 
-captcha_class.prototype.getResponse(opt_widget_id) = function() {
+captcha_class.prototype.getResponse = function(opt_widget_id) {
     if (!opt_widget_id || opt_widget_id == null || opt_widget_id == undefined)
         return document.querySelector('input[name="g-recaptcha-response"]').value;
     else {
@@ -200,7 +200,7 @@ captcha_class.prototype.praseMsg = function(msg) {
 
 window.grecaptcha = new captcha_class();
 
-function grecaptcha_loader() {
+captcha_class.prototype.grecaptcha_loader = function() {
     var url = document.querySelector('script[src*="/assets/captcha.js"]').src;
     if (url.indexOf('.js?') !== -1) {
         var parameters = url.split('?')[1];
@@ -243,21 +243,21 @@ function grecaptcha_loader() {
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    grecaptcha_loader();
+    grecaptcha.grecaptcha_loader();
 } else {
     if (document.attachEvent)
         document.attachEvent('onreadystatechange', function() {
             if (document.readyState === 'complete') {
-                grecaptcha_loader();
+                grecaptcha.grecaptcha_loader();
             }
         });
     else
         document.addEventListener('DOMContentLoaded', function() {
-            grecaptcha_loader();
+            grecaptcha.grecaptcha_loader();
         });
 }
 
-function fadeIn(element) {
+captcha_class.prototype.fadeIn = function(element) {
     var opacity = 0;  // Start with fully transparent
     element.style.display = 'block';  // Make sure element is visible (if hidden)
     element.style.opacity = opacity;  // Set initial opacity
@@ -273,7 +273,7 @@ function fadeIn(element) {
     }, 30);  // Interval in ms (30ms for smooth transition)
 }
 
-function fadeOut(element) {
+captcha_class.prototype.fadeOut = function(element) {
     var opacity = 1;  // Start with fully visible
     element.style.opacity = opacity;  // Set initial opacity
 
