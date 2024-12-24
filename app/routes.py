@@ -101,6 +101,7 @@ async def route_captcha_button(r: Request) -> Response:
     ref = ref.split("/", 1)[0]
     sitekey: str = r.path_params.get("sitekey", "")
     if not await redis.sismember(name=f"HOSTS:{sitekey}", value=ref):
+        utils.dprint(f"Host-Domain Not Allowed: {ref} - {sitekey}")
         return ResponseError(status_code=403, message="Host-Domain Not Allowed")
     
     if not await redis.sismember(name="SITEKEYS", value=sitekey):
@@ -230,7 +231,7 @@ async def route_display_captcha_test(r: Request) -> Response:
     
     if not r.post.keys() >= {'g-recaptcha-response', 'secret'}:
         payload: dict[str, str] = {
-                    'secret': r.post['secret'],
+                    'secret': "your_secretkey",
                     'response': r.post.get('g-recaptcha-response', ''),
                     'remoteip': r.ip,
                 }

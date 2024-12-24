@@ -3,7 +3,8 @@
 
 <head>
     <title>reCAPTCHA demo: Simple page</title>
-    <script src="assets/captcha.js" async defer></script>
+    <script src="/assets/captcha.js?onload=onload" async defer></script>
+    <link rel="icon" type="image/png" href="https://metin2pserver.net/assets/img/fav.png">
     <script>
 
     </script>
@@ -12,6 +13,12 @@
             background-color: darkslategrey;
         }
     </style>
+    <script>
+    
+function onload() {
+    console.log("recaptcha called onload()!");
+}
+</script>
 </head>
 
 <body>
@@ -23,7 +30,6 @@
         <div class="g-recaptcha" data-sitekey="your_sitekey"></div>
         <input type="text" name="some_post_field_name" value="some_post_field_value" placeholder="some post data"
             readonly><br>
-        <input type="text" name="secret" value="" placeholder="secret-key"><br>
         <input type="submit" value="Submit">
     </form>
 </body>
