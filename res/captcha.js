@@ -14,7 +14,7 @@ function CaptchaRender() {
         iframe.name = element_name;
         iframe.frameBorder = '0';
         iframe.scrolling = 'no';
-        iframe.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation allow-modals allow-storage-access-by-user-activation';
+        iframe.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
         // for easier debug domain stuff
         const captcha_url = document.querySelector('script[src$="/assets/captcha.js"]').src.replace('/assets/captcha.js', '');
         iframe.src = captcha_url + '/captcha/button/' + sitekey + '?element_name=' + element_name;
@@ -65,17 +65,17 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
         });
 }
 
-var timeout = 0; // TODO: maybe not working on multiple captcha buttons
+var timeout = [];
 function resetCaptchaButtonTimeout(iframe, element_name) {
-    if (timeout)
-        clearTimeout(timeout);
+    if (timeout[element_name])
+        clearTimeout(timeout[element_name]);
 
-    timeout = setTimeout(function () {
+    timeout[element_name] = setTimeout(function () {
         iframe.src = iframe.src
         if (document.querySelector('#modal-' + element_name))
             document.querySelector('#modal-' + element_name).remove();
         resetCaptchaButtonTimeout(iframe, element_name);
-    }, 1000*2*60); // 2 minutes
+    }, 1000*2); // 2 minutes
 }
 
 function praseMsg(msg) {
@@ -133,7 +133,7 @@ function praseMsg(msg) {
         iframe2.style.border = 'none';
         iframe2.frameBorder = '0';
         iframe2.scrolling = 'auto';
-        iframe2.sandbox = 'allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox allow-storage-access-by-user-activation';
+        iframe2.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
         // iframe2.setAttribute("data-element-name", element_name); // unused
 
         modalContent.appendChild(closeSpan);
@@ -147,7 +147,7 @@ function praseMsg(msg) {
         var captcha_result = parts[2];
         document.querySelector('#' + element_name).value = captcha_result;
         document.querySelector('#modal-' + element_name).remove();
-        clearTimeout(timeout);
+        clearTimeout(timeout[element_name]);
     }
     else if (msg.indexOf('captcha_iframe_size;') === 0) {
         var parts = msg.split(';');

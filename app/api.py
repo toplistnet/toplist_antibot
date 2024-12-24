@@ -44,7 +44,6 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
         await redis.zincrby(name="IPSTATS:VALIDATION:SUCCESS", amount=1, value=ip)
         await redis.zincrby(name="STATS:VALIDATION:SUCCESS", amount=1, value=r.post['secret'])
         # TODO: risk score calculation
-        # TODO: add proxycheck information?
         response["success"] = True
 
     except ValueError as e:
