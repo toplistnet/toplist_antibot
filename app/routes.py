@@ -88,8 +88,7 @@ async def route_captcha_button(r: Request) -> Response:
         return ResponseError(status_code=403, message="Site-Key Not Allowed")
     
     context: dict = {
-        "locale" : "en",
-        # TODO translate button texts..
+        "locale" : r.lang,
         "sitekey" : sitekey,
         "sitekey_hash" : utils.FastHash(input=f"{sitekey}_allowgeneration_{app.cfg.name}"),
     }
@@ -121,7 +120,7 @@ async def route_gen_captcha(r: Request) -> Response:
         'img' : data['bg_base64'],
         'translate' : localization.Translate,
         'Config' : utils.Config,
-        'locale' : 'en',
+        'locale' : r.lang,
         'element_name' : r.query.get('element_name', default='aa'),
         'timestamp' : timestamp,
         'sitekey' : sitekey,
