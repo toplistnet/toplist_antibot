@@ -1,7 +1,7 @@
 import random
 import aiohttp
 from app.app import app, redis, jinja2, localization
-from muffin import Request, Response, ResponseError, ResponseHTML, ResponseJSON
+from muffin import Request, Response, ResponseError, ResponseHTML, ResponseJSON, ResponseRedirect
 import app.tools.utils as utils
 import json
 import app.captcha1 as captcha1
@@ -67,8 +67,12 @@ async def AfterRequest() -> None:
     await EnsureCaptchaAvailability()
     await localization.Save()
 
+@app.route('/', methods=['GET'])
+async def route_index(r: Request) -> Response:
+    return ResponseRedirect(url="https://metin2pserver.net/Captcha-System-More-Reliable-Anti-Bot-System")
+
 @app.route('/stats', methods=['GET'])
-async def route_home(r: Request) -> Response:
+async def route_stats(r: Request) -> Response:
     for captcha_type in captchas.keys():
         if not str(object=captcha_type).isdigit():
             continue
