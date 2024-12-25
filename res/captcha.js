@@ -3,6 +3,7 @@ grecaptcha_url = grecaptcha_url.split('?')[0];
 
 function captcha_class() {
     this.timeout = [];
+    this.callbacks = [];
 }
 
 captcha_class.prototype.renderOneElement = function(div, sitekey) {
@@ -85,6 +86,9 @@ captcha_class.prototype.render = function(container, parameters) {
     else
         sitekey = div.getAttribute('data-sitekey');
 
+    if (parameters && parameters.callback != undefined)
+        this.callbacks[div.getAttribute('data-element-name')] = parameters.callback;
+        
     this.renderOneElement(div, sitekey);
 }
 
@@ -185,6 +189,10 @@ captcha_class.prototype.praseMsg = function(msg) {
         document.querySelector('#' + element_name).value = captcha_result;
         document.querySelector('#modal-' + element_name).remove();
         clearTimeout(timeout[element_name]);
+        if (this.callbacks[div.getAttribute('data-element-name')] != undefined) {
+            this.callbacks[div.getAttribute('data-element-name')]();
+            this.callbacks[div.getAttribute('data-element-name')] = undefined;
+        }
     }
     else if (msg.indexOf('captcha_iframe_size;') === 0) {
         var parts = msg.split(';');
