@@ -186,12 +186,12 @@ captcha_class.prototype.praseMsg = function(msg) {
         var parts = msg.split(';');
         var element_name = parts[1];
         var captcha_result = parts[2];
-        document.querySelector('#' + element_name).value = captcha_result;
+        document.querySelector("#g-recaptcha-response-" + element_name).value = captcha_result;
         document.querySelector('#modal-' + element_name).remove();
-        clearTimeout(timeout[element_name]);
-        if (this.callbacks[div.getAttribute('data-element-name')] != undefined) {
-            this.callbacks[div.getAttribute('data-element-name')]();
-            this.callbacks[div.getAttribute('data-element-name')] = undefined;
+        clearTimeout(this.timeout[element_name]);
+        if (this.callbacks[element_name] != undefined) {
+            this.callbacks[element_name]();
+            this.callbacks[element_name] = undefined;
         }
     }
     else if (msg.indexOf('captcha_iframe_size;') === 0) {

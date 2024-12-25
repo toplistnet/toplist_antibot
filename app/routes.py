@@ -118,7 +118,7 @@ async def route_captcha_button(r: Request) -> Response:
     captchas['stats'][f"captcha_button_rendered"] = \
         int(await redis.zincrby(name="STATS:GENERAL", amount=1, value="captcha_button_rendered"))
 
-    return ResponseHTML(content=await jinja2.render(path="captcha_button.html", **context))
+    return ResponseHTML(content=await jinja2.render(path="captcha_button_checkbox.html", **context))
 
 @app.route("/captcha/display/{sitekey:str}/{sitekey_hash:str}", methods=['GET'])
 async def route_gen_captcha(r: Request) -> Response:

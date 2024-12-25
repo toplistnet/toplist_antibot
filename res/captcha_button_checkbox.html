@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom reCAPTCHA Style Checkbox (IE8 Compatible)</title>
+  <style>
+  body {
+    background-color: transparent;
+    color: white;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 22px;
+    font-weight: bold;
+    height: 100%;
+    margin: 0;
+  }
+
+  .container {
+    background-color: #213333;
+    width: 260px;
+    height: 53px;
+    display: block;
+    border-radius: 6px;
+    border: 4px solid darkgreen;
+  }
+
+  .wrapper-good {
+      border: solid green 5px;
+      border-radius: 10px;
+  }
+
+  .control {
+    display: inline-block;
+    position: relative;
+    padding-left: 40px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 33px;
+    margin-top: 10px;
+    margin-left: 10px;
+  }
+
+  .control input {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+  }
+
+  .control__indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 30px;
+    width: 30px;
+    background: #e6e6e6;
+    border-radius: 4px;
+  }
+
+  .control:hover input ~ .control__indicator,
+  .control input:focus ~ .control__indicator {
+    background: /*#ccc;*/ yellow;
+  }
+
+  .control input:checked ~ .control__indicator {
+    background: #2aa1c0;
+  }
+
+  input:hover ~ .control__indicator,
+  .control:hover input:checked ~ .control__indicator,
+  .control input:checked:focus ~ .control__indicator {
+    background: #0e647d;
+  }
+
+  .control--checkbox input:checked ~ .control__indicator {
+    background: #2aa1c0;
+  }
+
+  .control input:checked ~ .control__indicator {
+    background: #2aa1c0;
+    border: 1px solid #2aa1c0;
+  }
+
+  .control label {
+    display: inline-block;
+    font-size: 18px;
+    color: white;
+  }
+
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            50% {
+                transform: translateX(5px);
+            }
+            75% {
+                transform: translateX(-5px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        @-webkit-keyframes shake {
+            0% {
+                -webkit-transform: translateX(0);
+            }
+            25% {
+                -webkit-transform: translateX(-5px);
+            }
+            50% {
+                -webkit-transform: translateX(5px);
+            }
+            75% {
+                -webkit-transform: translateX(-5px);
+            }
+            100% {
+                -webkit-transform: translateX(0);
+            }
+        }
+
+        .shake {
+            animation: shake 0.6s;
+            -webkit-animation: shake 0.6s;
+        }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <label class="control control--checkbox">
+      {{ Translate(locale, "I'm not a robot") }}
+      <input type="checkbox"/>
+      <div class="control__indicator"></div>
+    </label>
+  </div>
+
+  <script>
+    var checkbox = document.querySelector('.control input');
+    var indicator = document.querySelector('.control__indicator');
+
+    checkbox.onclick = function() {
+      if (checkbox.checked) {
+        indicator.style.background = "#2aa1c0"; // Checked state
+      } else {
+        indicator.style.background = "#e6e6e6"; // Unchecked state
+      }
+    };
+  </script>
+
+
+    <script>
+        if (!document.attachEvent)
+            document.attachEvent = function (event, callback) {
+                return document.addEventListener(event.replace(/^on/, ''), callback);
+            };
+
+        document.attachEvent('DOMContentLoaded', function () {
+            var timeout = setTimeout(function () {
+                window.location.reload();
+            }, 1000 * 60 * 3);
+
+            document.attachEvent('mousemove', function () {
+                clearTimeout(timeout);
+                timeout = setTimeout(function () {
+                    window.location.reload();
+                }, 1000 * 60 * 3);
+            });
+
+            var checkbox = document.querySelector('input[type="checkbox"]');
+            if (!checkbox.attachEvent)
+                checkbox.attachEvent = function (event, callback) {
+                    return document.addEventListener(event.replace(/^on/, ''), callback);
+                };
+
+            checkbox.attachEvent('change', function () {
+                if (checkbox.checked) {
+                    checkbox.disabled = true;
+
+                    document.querySelector(".container").className += ' wrapper-good';
+
+                    var element_name = (function () {
+                        var query = window.location.search.substring(1);
+                        var vars = query.split("&");
+                        for (var i = 0; i < vars.length; i++) {
+                            var pair = vars[i].split("=");
+                            if (pair[0] == "element_name")
+                                return pair[1];
+                        }
+                        return false;
+                    })();
+
+                    window.top.postMessage('captcha_url;' + element_name + ";" + "/captcha/display/{{ sitekey }}/{{ sitekey_hash }}", '*');
+                }
+            });
+
+            function shake() {
+                var wrapper = document.querySelector('.container');
+                wrapper.className += ' shake';
+                wrapper.className = wrapper.className.replace(' wrapper-good', '');
+                setTimeout(function () {
+                    wrapper.className = wrapper.className.replace(' shake', '');
+                }, 600);
+            }
+
+            function praseMsg(msg) {
+                if (msg.indexOf('shake') === 0) {
+                    shake();
+                } else if (msg.indexOf('reset_captcha_checkbox') === 0) {
+                    checkbox.disabled = false;
+                    checkbox.checked = false;
+                    document.querySelector(".wrapper").className = document.querySelector(".wrapper").className.replace(' wrapper-good', '');
+                }
+            }
+
+            if (window.attachEvent) {
+                window.attachEvent('onmessage', function (e) {
+                    praseMsg(e.data);
+                });
+            } else {
+                window.addEventListener('message', function (e) {
+                    praseMsg(e.data);
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
