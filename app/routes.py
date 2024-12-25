@@ -73,6 +73,8 @@ async def AfterRequest() -> None:
 
 @app.route('/', methods=['GET'])
 async def route_index(r: Request) -> Response:
+    if int(utils.Config(key="debug", default="0")):
+        return ResponseRedirect(url="/test")
     return ResponseRedirect(url="https://metin2pserver.net/Captcha-System-More-Reliable-Anti-Bot-System")
 
 @app.route('/stats', methods=['GET'])
