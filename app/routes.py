@@ -210,7 +210,7 @@ async def web_validate_captcha(r: Request) -> Response:
 
         result_token: str = utils.FastHash(input=f"{post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
         await redis.set(name=f"captcha_result_{result_token}", value=json.dumps(obj={
-            "ip" : r.ip,
+            "remoteip" : r.ip,
             "captcha_type" : captcha_type,
         }), ex=60*10)
 

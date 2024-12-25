@@ -4,7 +4,7 @@ import app.tools.utils as utils
 import time
 import json
 
-@app.route("/captcha/api/siteverify", methods=['POST'])
+@app.route(*("/captcha/api/siteverify", "/recaptcha/api/siteverify"), methods=['POST'])
 async def route_captcha_api_siteverify(r: Request) -> Response:
     ip: str = ""
     response: dict = {
@@ -33,13 +33,13 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
             raise ValueError("invalid-input-response")
         
         captcha_result: dict = json.loads(s=captcha_result_data)
-        ip = captcha_result['ip']
+        ip = captcha_result['remoteip']
 
         if 'extra' in r.post:
             response['captcha_type'] = captcha_result['captcha_type']
         
-        if 'ip' in r.post:
-            response['ip'] = r.post['ip'] == ip
+        if 'remoteip' in r.post:
+            response['remoteip'] = r.post['remoteip'] == ip
         
         await redis.zincrby(name="IPSTATS:VALIDATION:SUCCESS", amount=1, value=ip)
         await redis.zincrby(name="STATS:VALIDATION:SUCCESS", amount=1, value=r.post['secret'])
@@ -50,8 +50,8 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
         response['error-codes'].append(str(object=e))
 
     finally:
-        if 'ip' in r.post and 'ip' not in response:
-            response['ip'] = False
+        if 'remoteip' in r.post and 'remoteip' not in response:
+            response['remoteip'] = False
 
         if 'extra' in r.post:
             response['captcha_type'] = int(response.get('captcha_type', 0))
