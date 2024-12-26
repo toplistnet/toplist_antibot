@@ -214,6 +214,10 @@
                 } else if (msg.indexOf('reset_captcha_checkbox') === 0) {
                     checkbox.disabled = false;
                     checkbox.checked = false;
+
+                    var indicator = document.querySelector('.control__indicator');
+                    indicator.style.background = "#e6e6e6"; // Unchecked state
+
                     document.querySelector(".wrapper").className = document.querySelector(".wrapper").className.replace(' wrapper-good', '');
                 }
             }
