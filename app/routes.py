@@ -25,7 +25,7 @@ captchas: dict = {
         'validate' : captcha2.Validate,
         'template' : "2/index.html",
         'width' : 500,
-        'height' : 500,
+        'height' : 550,
     },
     'stats' : {
         "captcha_button_rendered": 0,
