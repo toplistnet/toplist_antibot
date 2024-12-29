@@ -62,7 +62,7 @@
   }
 
   .control input:checked ~ .control__indicator {
-    background: #2aa1c0;
+    background: green;
   }
 
   input:hover ~ .control__indicator,
@@ -72,12 +72,12 @@
   }
 
   .control--checkbox input:checked ~ .control__indicator {
-    background: #2aa1c0;
+    background: green;
   }
 
   .control input:checked ~ .control__indicator {
-    background: #2aa1c0;
-    border: 1px solid #2aa1c0;
+    background: green;
+    border: 1px solid green;
   }
 
   .control label {
@@ -146,7 +146,7 @@
 
     checkbox.onclick = function() {
       if (checkbox.checked) {
-        indicator.style.background = "#2aa1c0"; // Checked state
+        indicator.style.background = "green"; // Checked state
       } else {
         indicator.style.background = "#e6e6e6"; // Unchecked state
       }
