@@ -150,8 +150,8 @@ captcha_class.prototype.praseMsg = function(msg) {
         modalContent.className = 'modal-content';
         modalContent.id = 'modal-id-' + element_name;
         modalContent.style.position = 'relative';
-        modalContent.style.width = '500px';
-        modalContent.style.height = '400px';
+        modalContent.style.width = '0px';
+        modalContent.style.height = '0px';
         modalContent.style.background = 'white';
 
         var closeSpan = document.createElement('span');
@@ -174,7 +174,7 @@ captcha_class.prototype.praseMsg = function(msg) {
         iframe2.style.height = '100%';
         iframe2.style.border = 'none';
         iframe2.frameBorder = '0';
-        iframe2.scrolling = 'auto';
+        iframe2.scrolling = 'no';
         iframe2.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
 
         modalContent.appendChild(closeSpan);
@@ -199,8 +199,8 @@ captcha_class.prototype.praseMsg = function(msg) {
         var element_name = parts[1];
         var width = parts[2];
         var height = parts[3];
-        document.querySelector("#modal-id-" + element_name).width = width + "px";
-        document.querySelector("#modal-id-" + element_name).height = height + "px";
+        document.querySelector("#modal-id-" + element_name).style.width = width + "px";
+        document.querySelector("#modal-id-" + element_name).style.height = height + "px";
     }
     
     return false;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Custom reCAPTCHA Style Checkbox (IE8 Compatible)</title>
+  <title>Captcha</title>
   <style>
   body {
     background-color: transparent;
@@ -87,46 +87,46 @@
   }
 
 
-        @keyframes shake {
-            0% {
-                transform: translateX(0);
-            }
-            25% {
-                transform: translateX(-5px);
-            }
-            50% {
-                transform: translateX(5px);
-            }
-            75% {
-                transform: translateX(-5px);
-            }
-            100% {
-                transform: translateX(0);
-            }
-        }
+  @keyframes shake {
+      0% {
+          transform: translateX(0);
+      }
+      25% {
+          transform: translateX(-5px);
+      }
+      50% {
+          transform: translateX(5px);
+      }
+      75% {
+          transform: translateX(-5px);
+      }
+      100% {
+          transform: translateX(0);
+      }
+  }
 
-        @-webkit-keyframes shake {
-            0% {
-                -webkit-transform: translateX(0);
-            }
-            25% {
-                -webkit-transform: translateX(-5px);
-            }
-            50% {
-                -webkit-transform: translateX(5px);
-            }
-            75% {
-                -webkit-transform: translateX(-5px);
-            }
-            100% {
-                -webkit-transform: translateX(0);
-            }
-        }
+  @-webkit-keyframes shake {
+      0% {
+          -webkit-transform: translateX(0);
+      }
+      25% {
+          -webkit-transform: translateX(-5px);
+      }
+      50% {
+          -webkit-transform: translateX(5px);
+      }
+      75% {
+          -webkit-transform: translateX(-5px);
+      }
+      100% {
+          -webkit-transform: translateX(0);
+      }
+  }
 
-        .shake {
-            animation: shake 0.6s;
-            -webkit-animation: shake 0.6s;
-        }
+  .shake {
+      animation: shake 0.6s;
+      -webkit-animation: shake 0.6s;
+  }
 
   </style>
 </head>
@@ -218,7 +218,7 @@
                     var indicator = document.querySelector('.control__indicator');
                     indicator.style.background = "#e6e6e6"; // Unchecked state
 
-                    document.querySelector(".wrapper").className = document.querySelector(".wrapper").className.replace(' wrapper-good', '');
+                    document.querySelector(".wrapper-good").className = document.querySelector(".wrapper-good").className.replace(' wrapper-good', '');
                 }
             }
 

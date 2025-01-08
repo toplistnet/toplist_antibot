@@ -15,8 +15,8 @@ captchas: dict = {
         'generate' : captcha1.Generate,
         'validate' : captcha1.Validate,
         'template' : "1/index.html",
-        'width' : 400,
-        'height' : 400,
+        'width' : 407,
+        'height' : 268,
     },
     2 : {
         'count' : -1,
@@ -24,8 +24,8 @@ captchas: dict = {
         'generate' : captcha2.Generate,
         'validate' : captcha2.Validate,
         'template' : "2/index.html",
-        'width' : 500,
-        'height' : 550,
+        'width' : 402,
+        'height' : 400,
     },
     'stats' : {
         "captcha_button_rendered": 0,
