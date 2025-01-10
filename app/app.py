@@ -1,7 +1,6 @@
 import sys
 sys.dont_write_bytecode = True
 from muffin import Application
-# TODO: add sentry
 from app.tools.utils import Config
 
 app = Application(name="toplist_antibot", debug=True, static_url_prefix='/assets', static_folders=["res"])
@@ -33,3 +32,22 @@ jinja2.add_global(obj=localization.Translate)
 from app.routes import *
 from app.api import *
 from app.middleware import *
+
+if int(Config(key='debug')) == 0:
+    from asyncio import sleep, CancelledError
+    from asyncio.exceptions import CancelledError as asyncioCancelledError
+    import asgi_tools
+    import muffin_sentry
+    sentry = muffin_sentry.Plugin()
+    sentry.setup(app=app,    
+                dsn="https://a0783113f57a4d9066d0dd644ce07332@o4506817910407168.ingest.us.sentry.io/4508617431252992",
+                ignore_errors=(asgi_tools.response.ResponseError, 
+                                asgi_tools.response.ResponseRedirect,
+                                CancelledError,
+                                asyncioCancelledError,
+                                ),
+                environment="dev",
+                server_name=Config(key='url'),
+                traces_sample_rate=1.0,
+                profiles_sample_rate=1.0,
+                )
