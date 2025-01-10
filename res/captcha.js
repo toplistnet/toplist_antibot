@@ -1,3 +1,4 @@
+// TODO: rename modal classes and ids to be unique and not use user specific design
 var grecaptcha_url = document.querySelector('script[src*="/assets/captcha.js"]').src;
 grecaptcha_url = grecaptcha_url.split('?')[0];
 
