@@ -34,7 +34,7 @@ class Localization():
         self.loaded = True
         
     async def Save(self) -> None:
-        for text in self.saveQueue:
+        for text in self.saveQueue.copy():
             await db.insert(table="locale", data={
                     "lang_en" : text,
                     "uri" : "antibot.py",
