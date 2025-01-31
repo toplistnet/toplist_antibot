@@ -208,7 +208,7 @@
                 }, 600);
             }
 
-            function praseMsg(msg) {
+            function parseMsg(msg) {
                 if (msg.indexOf('shake') === 0) {
                     shake();
                 } else if (msg.indexOf('reset_captcha_checkbox') === 0) {
@@ -224,11 +224,11 @@
 
             if (window.attachEvent) {
                 window.attachEvent('onmessage', function (e) {
-                    praseMsg(e.data);
+                    parseMsg(e.data);
                 });
             } else {
                 window.addEventListener('message', function (e) {
-                    praseMsg(e.data);
+                    parseMsg(e.data);
                 });
             }
         });
