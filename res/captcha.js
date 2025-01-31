@@ -123,6 +123,10 @@ captcha_class.prototype.resetCaptchaButtonTimeout = function(iframe, element_nam
 }
 
 captcha_class.prototype.praseMsg = function(msg) {
+    if typeof msg !== 'string' {
+        return false;
+    }
+    
     if (msg.indexOf('captcha_url;') === 0) {
         var parts = msg.split(';');
         var element_name = parts[1];
@@ -240,12 +244,14 @@ captcha_class.prototype.grecaptcha_loader = function() {
 
     if (window.attachEvent) {
         window.attachEvent('onmessage', function(e) {
-            window.grecaptcha.praseMsg(e.data);
+            if (window.grecaptcha)
+                window.grecaptcha.praseMsg(e.data);
             return false;
         });
     } else {
         window.addEventListener('message', function(e) {
-            window.grecaptcha.praseMsg(e.data);
+            if (window.grecaptcha)
+                window.grecaptcha.praseMsg(e.data);
             return false;
         });
     }
