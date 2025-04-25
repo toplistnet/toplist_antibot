@@ -16,12 +16,12 @@
   }
 
   .container {
-    background-color: #213333;
+    background-color: #45351a;
     width: 260px;
     height: 53px;
     display: block;
-    border-radius: 6px;
-    border: 4px solid darkgreen;
+    border-radius: 12px;
+    border: 2px solid #716042;
   }
 
   .wrapper-good {
@@ -30,7 +30,8 @@
   }
 
   .control {
-    display: inline-block;
+    display: flex;
+    justify-content: space-around;
     position: relative;
     padding-left: 40px;
     cursor: pointer;
@@ -44,6 +45,7 @@
     position: absolute;
     z-index: -1;
     opacity: 0;
+    transition: all 0.4s ease-in-out;
   }
 
   .control__indicator {
@@ -52,17 +54,21 @@
     left: 0;
     height: 30px;
     width: 30px;
-    background: #e6e6e6;
-    border-radius: 4px;
+    background: #e1d6bf;
+    border-radius: 7px;
+    border: 2px solid #e1d6bf;
+    transition: all 0.1s ease-in-out;
   }
 
   .control:hover input ~ .control__indicator,
   .control input:focus ~ .control__indicator {
-    background: /*#ccc;*/ yellow;
+    background: #e1d6bf;
+    border: 2px solid #83765a;
   }
 
   .control input:checked ~ .control__indicator {
-    background: green;
+    background: #7bbb7b;
+    border: 2px solid #9ce59c;
   }
 
   input:hover ~ .control__indicator,
@@ -72,12 +78,13 @@
   }
 
   .control--checkbox input:checked ~ .control__indicator {
-    background: green;
+    background: #7bbb7b;
+    border: 2px solid #9ce59c;
   }
 
   .control input:checked ~ .control__indicator {
-    background: green;
-    border: 1px solid green;
+    background: #7bbb7b;
+    border: 2px solid #9ce59c;
   }
 
   .control label {
@@ -146,9 +153,9 @@
 
     checkbox.onclick = function() {
       if (checkbox.checked) {
-        indicator.style.background = "green"; // Checked state
+        indicator.style.background = "#7bbb7b"; // Checked state
       } else {
-        indicator.style.background = "#e6e6e6"; // Unchecked state
+        indicator.style.background = "#e1d6bf"; // Unchecked state
       }
     };
   </script>
