@@ -16,11 +16,16 @@
   }
 
   .container {
-    background-color: #45351a;
+    background-color: #353535;
     width: 260px;
     height: 53px;
     display: block;
     border-radius: 12px;
+    border: 2px solid #6d6a64;
+  }
+
+  .container.toplist {
+    background-color: #45351a;
     border: 2px solid #716042;
   }
 
@@ -47,6 +52,18 @@
     z-index: -1;
     opacity: 0;
     transition: all 0.4s ease-in-out;
+  }
+
+  .control__indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 30px;
+    width: 30px;
+    background: #e1d6bf;
+    border-radius: 7px;
+    border: 2px solid #e1d6bf;
+    transition: all 0.1s ease-in-out;
   }
 
   .control__indicator {
@@ -153,7 +170,7 @@
     <label class="control control--checkbox">
       {{ Translate(locale, "I'm not a robot") }}
       <input type="checkbox"/>
-      <div class="logo"></div>
+      <a href="https://metin2pserver.net/captcha_alternative" target="_blank"><div class="logo"></div></a>
       <div class="control__indicator"></div>
     </label>
   </div>
