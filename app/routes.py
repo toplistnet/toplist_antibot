@@ -178,10 +178,12 @@ async def web_validate_captcha(r: Request) -> Response:
     post: dict[str, str] = r.post
 
     try:
+        captcha_type: int = -1
+
         if not post.keys() >= {'captcha_id', 'captcha_type', 'hash', 'timestamp', 'sitekey'}:
             raise ValueError("missing parameters")
         
-        captcha_type: int = int(post['captcha_type'])
+        captcha_type = int(post['captcha_type'])
 
         c_hash: str = utils.FastHash(input=f"{post['captcha_id']}_{captcha_type}_{post['timestamp']}_{post['sitekey']}")
         if c_hash != post['hash']:
@@ -208,7 +210,8 @@ async def web_validate_captcha(r: Request) -> Response:
 
     finally:
         if 'error' in validation:
-            await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=post['sitekey'])
+            if 'sitekey' in post:
+                await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=post['sitekey'])
             await redis.zincrby(name="IPSTATS:CAPTCHA:FAILED", amount=1, value=r.ip)
             captchas['stats'][f"captcha{captcha_type}_validations_failed"] = \
                 int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_failed"))
