@@ -37,7 +37,8 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
 
         if 'extra' in r.post:
             response['captcha_type'] = captcha_result['captcha_type']
-        
+            response['duration'] = captcha_result.get('duration', 0)
+
         if 'remoteip' in r.post:
             response['remoteip'] = r.post['remoteip'] == ip
         
@@ -55,6 +56,7 @@ async def route_captcha_api_siteverify(r: Request) -> Response:
 
         if 'extra' in r.post:
             response['captcha_type'] = int(response.get('captcha_type', 0))
+            response['duration'] = float(response.get('duration', 0) or 0)
 
             captchas = await redis.zscore(name="IPSTATS:CAPTCHA:GENERATED", value=ip) or 0
             response['captchas'] = int(captchas)

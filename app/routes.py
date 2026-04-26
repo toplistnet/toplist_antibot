@@ -218,9 +218,16 @@ async def web_validate_captcha(r: Request) -> Response:
             return ResponseJSON(content=validation)
 
         result_token: str = utils.FastHash(input=f"{post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
+        try:
+            duration: float = round(time.time() - float(post.get('timestamp', 0)), 3)
+            if duration < 0 or duration > 86400:
+                duration = 0
+        except (TypeError, ValueError):
+            duration = 0
         await redis.set(name=f"captcha_result_{result_token}", value=json.dumps(obj={
             "remoteip" : r.ip,
             "captcha_type" : captcha_type,
+            "duration" : duration,
         }), ex=60*10)
 
         await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=post['sitekey'])
