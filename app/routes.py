@@ -1,6 +1,6 @@
 import random
 import aiohttp
-from app.app import app, redis, jinja2, localization
+from app.app import app, redis, db, jinja2, localization
 from muffin import Request, Response, ResponseError, ResponseHTML, ResponseJSON, ResponseRedirect
 import app.tools.utils as utils
 import json
@@ -47,6 +47,19 @@ captchas: dict = {
 async def LoadStats() -> None:
     for name in captchas['stats'].keys():
         captchas['stats'][name] = int(await redis.zscore(name="STATS:GENERAL", value=name) or 0)
+
+async def SyncCaptchaUsers() -> None:
+    rows: list[dict] = await db.query(query="SELECT id, sitekey, secretkey, hosts FROM captcha_users")
+    if not rows:
+        return
+
+    for row in rows:
+        await redis.sadd("USERS", row['id'])
+        await redis.sadd("SITEKEYS", row['sitekey'])
+        await redis.sadd("SECRETKEYS", row['secretkey'])
+        hosts: list = [h for h in (row.get('hosts') or '').split(',') if h]
+        if hosts:
+            await redis.sadd(f"HOSTS:{row['sitekey']}", *hosts)
     
 async def EnsureCaptchaAvailability() -> None:
     global captchas
@@ -263,3 +276,4 @@ async def route_display_captcha_test(r: Request) -> Response:
 app.on_startup(fn=utils.PrepareDataset)
 app.on_startup(fn=EnsureCaptchaAvailability)
 app.on_startup(fn=LoadStats)
+app.on_startup(fn=SyncCaptchaUsers)
