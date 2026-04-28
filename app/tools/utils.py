@@ -2,8 +2,9 @@ import cachetools.func
 import math
 import os
 import pickle
+import warnings
 from PIL import Image, ImageDraw
-import numpy as np 
+import numpy as np
 import xxhash
 import re
 import json
@@ -109,7 +110,9 @@ def PrepareDataset() -> None:
     
     global ICON_DATASET
     with open(file='res/cifar-10-batches-py/data_batch_3', mode='rb') as fo:
-        data: dict = pickle.load(file=fo, encoding='bytes')
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action='ignore', message=r'.*align=0.*', category=np.VisibleDeprecationWarning)
+            data: dict = pickle.load(file=fo, encoding='bytes')
         ICON_DATASET = data[b'data']
    
     if not (os.path.isdir(s='res/bgs') and os.path.isdir('res/bgs/test_lmdb') and os.path.isfile(path='res/bgs/test_lmdb.zip')):
