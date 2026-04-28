@@ -111,7 +111,7 @@ def PrepareDataset() -> None:
     global ICON_DATASET
     with open(file='res/cifar-10-batches-py/data_batch_3', mode='rb') as fo:
         with warnings.catch_warnings():
-            warnings.filterwarnings(action='ignore', message=r'.*align=0.*', category=np.VisibleDeprecationWarning)
+            warnings.filterwarnings(action='ignore', message=r'.*align=0.*')
             data: dict = pickle.load(file=fo, encoding='bytes')
         ICON_DATASET = data[b'data']
    
