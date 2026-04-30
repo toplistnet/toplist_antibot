@@ -179,39 +179,58 @@
 
 		$(document).ready(function() {
 			var clicks = [];
+			var locked = false;
 			$('.card-img').click(function(e) {
-				if (clicks.length >= $("body").data('icons'))
-					return;
+				if (locked) return;
+				if (clicks.length >= $("body").data('icons')) return;
 
 				var offset = $(this).offset();
 				var x = e.pageX - offset.left;
 				var y = e.pageY - offset.top;
+				var index = clicks.length;
 
 				clicks.push([x,y,+new Date()]);
 				$('.card-body').append('<div class="dot" style="left:' + (x-6) + 'px; top:' + (y-6) + 'px;"></div>');
-				// TODO: replace dot with visual_marker + mousehover moves it until you drop it..
+				locked = true;
 
-				if ($("body").data('icons') == clicks.length) {
-					var element = "{{ element_name }}";
-					var payload = {
-						captcha_id: {{ captcha_id }}, 
-						timestamp: {{ timestamp }},
-						sitekey: '{{ sitekey }}',
-						hash: '{{ hash }}',
-						captcha_type: 1, 
-						clicks: JSON.stringify(clicks)
-					};
-					
-					$.post('/captcha/validate', payload, function(data) {
-						if (data['status'] == false)
-							fail();
-						else if (data['status'] == true)
-							window.top.postMessage('captcha_done;' + element + ";" + data['result'], '*');
-					});
-				}
-				else {
-					$('div#visual_marker').css('left', -2 + (clicks.length * 25));
-				}
+				$.post('/captcha/check_click', {
+					captcha_id: {{ captcha_id }},
+					captcha_type: 1,
+					timestamp: {{ timestamp }},
+					sitekey: '{{ sitekey }}',
+					hash: '{{ hash }}',
+					index: index,
+					x: x,
+					y: y
+				}, function(data) {
+					if (!data || data.ok !== true) {
+						fail();
+						return;
+					}
+
+					if ($("body").data('icons') == clicks.length) {
+						var element = "{{ element_name }}";
+						var payload = {
+							captcha_id: {{ captcha_id }},
+							timestamp: {{ timestamp }},
+							sitekey: '{{ sitekey }}',
+							hash: '{{ hash }}',
+							captcha_type: 1,
+							clicks: JSON.stringify(clicks)
+						};
+
+						$.post('/captcha/validate', payload, function(data) {
+							if (data['status'] == false)
+								fail();
+							else if (data['status'] == true)
+								window.top.postMessage('captcha_done;' + element + ";" + data['result'], '*');
+						});
+					}
+					else {
+						$('div#visual_marker').css('left', -2 + (clicks.length * 25));
+						locked = false;
+					}
+				}).fail(function() { fail(); });
 			});
 			
 			setTimeout(function() {

@@ -197,8 +197,12 @@ captcha_class.prototype.parseMsg = function(msg) {
         var parts = msg.split(';');
         var element_name = parts[1];
         var captcha_result = parts[2];
-        document.querySelector("#g-recaptcha-response-" + element_name).value = captcha_result;
-        document.querySelector('#modal-' + element_name).remove();
+        var resp_input = document.querySelector("#g-recaptcha-response-" + element_name);
+        if (resp_input)
+            resp_input.value = captcha_result;
+        var modal = document.querySelector('#modal-' + element_name);
+        if (modal)
+            modal.remove();
         clearTimeout(this.timeout[element_name]);
         if (this.callbacks[element_name] != undefined) {
             this.callbacks[element_name]();
@@ -210,8 +214,11 @@ captcha_class.prototype.parseMsg = function(msg) {
         var element_name = parts[1];
         var width = parts[2];
         var height = parts[3];
-        document.querySelector("#modal-id-" + element_name).style.width = width + "px";
-        document.querySelector("#modal-id-" + element_name).style.height = height + "px";
+        var modal_inner = document.querySelector("#modal-id-" + element_name);
+        if (modal_inner) {
+            modal_inner.style.width = width + "px";
+            modal_inner.style.height = height + "px";
+        }
     }
     
     return false;

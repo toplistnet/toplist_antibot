@@ -15,9 +15,11 @@ captchas: dict = {
         'min_count' : int(utils.Config(key="captcha1_pregeneration_count", default="10")),
         'generate' : captcha1.Generate,
         'validate' : captcha1.Validate,
+        'check_click' : captcha1.CheckClick,
         'template' : "1/index.html",
         'width' : 407,
         'height' : 268,
+        'set_name' : f"captcha1_v{captcha1.VERSION}",
     },
     2 : {
         'count' : -1,
@@ -27,15 +29,18 @@ captchas: dict = {
         'template' : "2/index.html",
         'width' : 402,
         'height' : 400,
+        'set_name' : f"captcha2_v{captcha2.VERSION}",
     },
     3 : {
         'count' : -1,
         'min_count' : int(utils.Config(key="captcha3_pregeneration_count", default="10")),
         'generate' : captcha3.Generate,
         'validate' : captcha3.Validate,
+        'check_click' : captcha3.CheckClick,
         'template' : "3/index.html",
         'width' : 407,
         'height' : 268,
+        'set_name' : f"captcha3_v{captcha3.VERSION}",
     },
     'stats' : {
         "captcha_button_rendered": 0,
@@ -84,15 +89,15 @@ async def EnsureCaptchaAvailability() -> None:
             continue
 
         while True:
-            captchas[captcha_type]['count'] = await redis.scard(name=f"captcha{captcha_type}") or 0
+            captchas[captcha_type]['count'] = await redis.scard(name=captcha_data['set_name']) or 0
             if captcha_data['count'] >= captcha_data['min_count']:
                 break
 
             data: dict = captcha_data['generate']()
             if not data['status']:
                 continue
-            
-            await redis.sadd(f"captcha{captcha_type}", json.dumps(obj=data))
+
+            await redis.sadd(captcha_data['set_name'], json.dumps(obj=data))
             captchas['stats'][f"captcha{captcha_type}_generated"] = \
                 int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_generated"))
 
@@ -180,7 +185,7 @@ async def route_gen_captcha(r: Request) -> Response:
             pool = [k for k in captchas.keys() if isinstance(k, int)]
         captcha_type = random.choice(seq=pool)
 
-    _data: bytes | float | int | str = await redis.spop(name=f"captcha{captcha_type}") or ''
+    _data: bytes | float | int | str = await redis.spop(name=captchas[captcha_type]['set_name']) or ''
     data: dict = json.loads(s=str(object=_data))
 
     sitekey: str = r.path_params.get("sitekey", "")
@@ -220,6 +225,54 @@ async def route_gen_captcha(r: Request) -> Response:
         int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_rendered"))
     return ResponseHTML(content=html)
     
+CHECK_CLICK_FAIL_LIMIT: int = int(utils.Config(key='captcha_check_click_fail_limit', default="30"))
+
+@app.route("/captcha/check_click", methods=['POST'])
+async def web_check_captcha_click(r: Request) -> Response:
+    response: dict = {'ok': False}
+    post: dict[str, str] = r.post
+
+    try:
+        if not post.keys() >= {'captcha_id', 'captcha_type', 'hash', 'timestamp', 'sitekey', 'index', 'x', 'y'}:
+            return ResponseJSON(content=response)
+
+        captcha_type: int = int(post['captcha_type'])
+        if captcha_type not in captchas or 'check_click' not in captchas[captcha_type]:
+            return ResponseJSON(content=response)
+
+        c_hash: str = utils.FastHash(input=f"{post['captcha_id']}_{captcha_type}_{post['timestamp']}_{post['sitekey']}")
+        if c_hash != post['hash']:
+            return ResponseJSON(content=response)
+
+        db_data_str: str | bytes | None = await redis.get(name=f"captcha_{post['captcha_id']}")
+        if not db_data_str:
+            response['expired'] = True
+            return ResponseJSON(content=response)
+
+        db_data: list = json.loads(s=db_data_str)
+        index: int = int(post['index'])
+        x: int = int(float(post['x']))
+        y: int = int(float(post['y']))
+
+        if captchas[captcha_type]['check_click'](db_data=db_data, index=index, x=x, y=y):
+            response['ok'] = True
+            now_ms: int = int(time.time() * 1000)
+            await redis.rpush(f"captcha_click_times_{post['captcha_id']}", now_ms)
+            await redis.expire(name=f"captcha_click_times_{post['captcha_id']}", time=60*10)
+            utils.dprint(f"[check_click] HIT  type={captcha_type} id={post['captcha_id']} idx={index} click=({x},{y}) t_ms={now_ms}")
+        else:
+            fails: int = int(await redis.incr(name=f"captcha_check_fails_{post['captcha_id']}"))
+            await redis.expire(name=f"captcha_check_fails_{post['captcha_id']}", time=60*10)
+            utils.dprint(f"[check_click] MISS type={captcha_type} id={post['captcha_id']} idx={index} click=({x},{y}) fails={fails}/{CHECK_CLICK_FAIL_LIMIT}")
+            if fails >= CHECK_CLICK_FAIL_LIMIT:
+                await redis.delete(f"captcha_{post['captcha_id']}")
+                response['expired'] = True
+
+    except Exception as e:
+        utils.dprint(f"[check_click] {type(e).__name__}: {e}\n{utils.stacktrace()}")
+
+    return ResponseJSON(content=response)
+
 @app.route("/captcha/validate", methods=['POST'])
 async def web_validate_captcha(r: Request) -> Response:
     validation: dict = { 'status' : False }
@@ -252,9 +305,14 @@ async def web_validate_captcha(r: Request) -> Response:
 
     except ValueError as e:
         validation['error'] = str(object=e)
+        utils.dprint(f"[validate] ValueError: {e} | type={captcha_type} sitekey={post.get('sitekey','?')} "
+                     f"captcha_id={post.get('captcha_id','?')} ip={r.ip} hash={post.get('hash','?')} "
+                     f"ts={post.get('timestamp','?')}")
 
     except Exception as e:
         validation['error'] = str(object=e)
+        utils.dprint(f"[validate] {type(e).__name__}: {e} | type={captcha_type} sitekey={post.get('sitekey','?')} "
+                     f"captcha_id={post.get('captcha_id','?')} ip={r.ip}\n{utils.stacktrace()}")
 
     finally:
         if 'error' in validation:
@@ -272,10 +330,20 @@ async def web_validate_captcha(r: Request) -> Response:
                 duration = 0
         except (TypeError, ValueError):
             duration = 0
+
+        click_times_key: str = f"captcha_click_times_{post['captcha_id']}"
+        raw_times: list = await redis.lrange(click_times_key, 0, -1) or []
+        click_times_ms: list = [int(t) for t in raw_times]
+        click_intervals_ms: list = [0] + [click_times_ms[i] - click_times_ms[i-1] for i in range(1, len(click_times_ms))]
+        click_intervals: str = ",".join(str(d) for d in click_intervals_ms)
+        await redis.delete(click_times_key)
+        await redis.delete(f"captcha_check_fails_{post['captcha_id']}")
+
         await redis.set(name=f"captcha_result_{result_token}", value=json.dumps(obj={
             "remoteip" : r.ip,
             "captcha_type" : captcha_type,
             "duration" : duration,
+            "click_intervals" : click_intervals,
         }), ex=60*10)
 
         await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=post['sitekey'])

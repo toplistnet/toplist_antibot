@@ -8,6 +8,7 @@ import json
 import math
 
 TOLLERENCE: int = int(utils.Config(key='captcha2_tollerance', default="3"))
+VERSION: int = 1  # bump when Generate() output schema/semantics change → invalidates redis pool
         
 def Generate() -> dict[str, str | int | dict]:
     bgs: list[str] = utils.Cached_Glob(pattern="res/bgs/*/*/*/*/*/*/*")
@@ -95,20 +96,29 @@ def Generate() -> dict[str, str | int | dict]:
 
 def Validate(db_data: dict, post_data: dict) -> None:
     if not post_data.keys() >= {'click'}:
+        utils.dprint(f"[captcha2] missing 'click' in post_data; keys={list(post_data.keys())}")
         raise ValueError("missing parameters")
-        
+
     post_data['click'] = json.loads(s=post_data['click'])
-    
+
     if len(post_data['click']) != 2:
+        utils.dprint(f"[captcha2] click malformed: {post_data['click']}")
         raise ValueError('click must be a list of 2 numbers')
-        
+
     post_data['click'][0] = round(number=post_data['click'][0])
     post_data['click'][1] = round(number=post_data['click'][1])
 
-    if not utils.IsPointInCircle(point_circle_center=utils.Point(x=db_data['x'], y=db_data['y']), 
-                            point_click=utils.Point(x=post_data['click'][0], y=post_data['click'][1]),
-                            radius=db_data['r']):
-        utils.dprint(f"Error: Click not in circle, {db_data} {post_data['click']}")
+    cx: int = db_data['x']
+    cy: int = db_data['y']
+    cr: int = db_data['r']
+    px: int = post_data['click'][0]
+    py: int = post_data['click'][1]
+    import math
+    dist: float = math.sqrt((cx - px) ** 2 + (cy - py) ** 2)
+    hit: bool = dist <= cr
+    utils.dprint(f"[captcha2] click {'HIT ' if hit else 'MISS'} click=({px},{py}) "
+                 f"circle=(x={cx},y={cy},r={cr}) dist={dist:.2f} off={dist - cr:.2f}")
+    if not hit:
         raise ValueError('failed')
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ import json
 from app.app import redis
 
 TOLLERENCE: int = int(Config(key='captcha1_tollerance', default="12"))
+VERSION: int = 2  # bump when Generate() output schema/semantics change → invalidates redis pool
 
 def PlaceOneIcon(bg: Image.Image, icon: Image.Image, icon_coordinates: list, icon_collection_img: Image.Image, fake: bool) -> bool:
     newCoords: list[int] = []
@@ -64,17 +65,16 @@ def Generate() -> dict[str, str | int | list]:
     all_icons_shuffled: list[str] = copy(all_icons)
     random.shuffle(all_icons_shuffled)
     icons: list[str] = all_icons_shuffled[:icons_count + fake_icons_count]
-    fake_icon: str | None = all_icons_shuffled[icons_count + fake_icons_count - 1] if fake_icons_count else None
     icon_coordinates: list[int] = []
-    
+
     bg: Image.Image = copy(GetCachedPILImage(path=bg_img_path, convert='RGB'))
-    for icon_path in icons:
+    for i, icon_path in enumerate(iterable=icons):
         icon: Image.Image = copy(GetCachedPILImage(path=icon_path, convert='RGBA'))
-        placed_successfully: bool = PlaceOneIcon(bg=bg, icon=icon, icon_coordinates=icon_coordinates, 
-                                           icon_collection_img=icons_img, fake=fake_icon == icon_path)
+        placed_successfully: bool = PlaceOneIcon(bg=bg, icon=icon, icon_coordinates=icon_coordinates,
+                                           icon_collection_img=icons_img, fake=i >= icons_count)
         if not placed_successfully:
             dprint("Error, captcha1 not placed_successfully")
-            dprint(f"{bg} {icons} {fake_icon} {icon}")
+            dprint(f"{bg} {icons} {icon}")
             return { 'status' : False, 'error' : 'Error, captcha1 not placed_successfully' }
         
     buffered = BytesIO()
@@ -101,28 +101,47 @@ def Generate() -> dict[str, str | int | list]:
             'icon_coordinates' : icon_coordinates,
             }
         
+def CheckClick(db_data: list, index: int, x: int, y: int) -> bool:
+    if index < 0 or index >= len(db_data):
+        return False
+    rect_data: dict = db_data[index]
+    rect = Rectangle(posn=Point(x=rect_data['x'], y=rect_data['y']),
+                     w=rect_data['w'], h=rect_data['h'], padding=TOLLERENCE)
+    return rect.IsIn(p=Point(x=x, y=y))
+
 def Validate(db_data: dict, post_data: dict) -> None:
     if not post_data.keys() >= {'clicks'}:
+        dprint(f"[captcha1] missing 'clicks' in post_data; keys={list(post_data.keys())}")
         raise ValueError("missing parameters")
-    
+
     clicks_str: str = post_data['clicks']
     clicks: dict = json.loads(s=clicks_str)
-    
+
     if len(db_data) != len(clicks):
+        dprint(f"[captcha1] click count mismatch: expected={len(db_data)} got={len(clicks)} clicks={clicks} rects={db_data}")
         raise ValueError('click count mismatch')
-            
-    index = 0
+
+    misses: list = []
     for index in range(len(db_data)):
         rect_data: dict = db_data[index]
         rect = Rectangle(posn=
                             Point(x=rect_data['x'], y=rect_data['y']),
                             w=rect_data['w'], h=rect_data['h'], padding = TOLLERENCE)
-        click: Point = Point(x=clicks[index][0], y=clicks[index][1])
-        if not rect.IsIn(p=click):
-            dprint(f"USER ERR:    click[{index}] not in {clicks[index]} | {rect_data} | {rect}")
-            raise ValueError('failed')
-        
-        index += 1
+        click_x, click_y = clicks[index][0], clicks[index][1]
+        click: Point = Point(x=click_x, y=click_y)
+        hit: bool = rect.IsIn(p=click)
+        rx, ry, rw, rh = rect.pos.x, rect.pos.y, rect.width, rect.height
+        dx: int = 0 if rx < click_x < rx + rw else (rx - click_x if click_x <= rx else click_x - (rx + rw))
+        dy: int = 0 if ry < click_y < ry + rh else (ry - click_y if click_y <= ry else click_y - (ry + rh))
+        dprint(f"[captcha1] click[{index}] {'HIT ' if hit else 'MISS'} click=({click_x},{click_y}) "
+               f"icon_bbox=(x={rect_data['x']},y={rect_data['y']},w={rect_data['w']},h={rect_data['h']}) "
+               f"padded=(x={rx},y={ry},w={rw},h={rh}) off=(dx={dx},dy={dy}) tollerance={TOLLERENCE}")
+        if not hit:
+            misses.append(index)
+
+    if misses:
+        dprint(f"[captcha1] FAIL: missed {len(misses)}/{len(db_data)} clicks (indices={misses})")
+        raise ValueError('failed')
     
 if __name__ == "__main__":
     print(Generate())
