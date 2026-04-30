@@ -5,7 +5,7 @@ grecaptcha_url = grecaptcha_url.split('?')[0];
 function captcha_class() {
     this.timeout = [];
     this.callbacks = [];
-    this.popups = [];
+    this.modals = [];
 }
 
 captcha_class.prototype.renderOneElement = function(div, sitekey) {
@@ -124,36 +124,104 @@ captcha_class.prototype.resetCaptchaButtonTimeout = function(iframe, element_nam
     var self = this;
     this.timeout[element_name] = setTimeout(function () {
         iframe.src = iframe.src
-        if (self.popups[element_name]) {
-            try { self.popups[element_name].close(); } catch (e) {}
-            self.popups[element_name] = undefined;
-        }
+        self.closeCaptchaModal(element_name);
         grecaptcha.resetCaptchaButtonTimeout(iframe, element_name);
     }, 1000*2*2000); // 2 minutes
 }
 
-captcha_class.prototype.openCaptchaPopup = function(url, element_name) {
-    var w = 480, h = 560;
-    var screenLeft = (typeof window.screenX !== 'undefined') ? window.screenX : window.screenLeft;
-    var screenTop  = (typeof window.screenY !== 'undefined') ? window.screenY : window.screenTop;
-    var winWidth   = window.outerWidth  || document.documentElement.clientWidth  || screen.width;
-    var winHeight  = window.outerHeight || document.documentElement.clientHeight || screen.height;
-    var left = Math.round(screenLeft + Math.max(0, (winWidth  - w) / 2));
-    var top  = Math.round(screenTop  + Math.max(0, (winHeight - h) / 2));
-    var features = [
-        'popup=yes',
-        'width=' + w,
-        'height=' + h,
-        'left=' + left,
-        'top=' + top,
-        'resizable=yes',
-        'scrollbars=no',
-        'toolbar=no',
-        'location=no',
-        'status=no',
-        'menubar=no'
-    ].join(',');
-    return window.open(url, 'captcha_' + element_name, features);
+captcha_class.prototype.openCaptchaModal = function(url, element_name) {
+    var self = this;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'captcha-modal-' + element_name;
+    overlay.style.cssText = [
+        'position:fixed',
+        'top:0', 'left:0', 'right:0', 'bottom:0',
+        'width:100%', 'height:100%',
+        'background:rgba(0,0,0,0.7)',
+        'z-index:2147483647',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'opacity:0',
+        'transition:opacity 0.15s ease-out',
+        'box-sizing:border-box',
+        'padding:16px'
+    ].join(';');
+
+    var container = document.createElement('div');
+    container.style.cssText = [
+        'position:relative',
+        'background:transparent',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.6)',
+        'transition:width 0.15s ease, height 0.15s ease',
+        'width:0px',
+        'height:0px',
+        'max-width:100%',
+        'max-height:100%',
+        'overflow:visible'
+    ].join(';');
+
+    var iframe = document.createElement('iframe');
+    iframe.allowTransparency = true;
+    iframe.src = url;
+    iframe.frameBorder = '0';
+    iframe.scrolling = 'no';
+    iframe.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
+    iframe.style.cssText = 'width:100%;height:100%;border:0;display:block';
+
+    var closeBtn = document.createElement('span');
+    closeBtn.innerHTML = '&times;';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.style.cssText = [
+        'position:absolute',
+        'top:-32px',
+        'right:0',
+        'font-size:28px',
+        'line-height:1',
+        'color:#fff',
+        'cursor:pointer',
+        'font-family:Arial,sans-serif',
+        'user-select:none',
+        '-webkit-user-select:none'
+    ].join(';');
+
+    var close = function() {
+        var btn = document.querySelector("iframe[name='" + element_name + "']");
+        if (btn && btn.contentWindow)
+            btn.contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
+        self.closeCaptchaModal(element_name);
+    };
+
+    closeBtn.onclick = function(e) { e.stopPropagation(); close(); };
+    overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+    var keyHandler = function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) close();
+    };
+    document.addEventListener('keydown', keyHandler);
+
+    container.appendChild(iframe);
+    container.appendChild(closeBtn);
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    if (typeof requestAnimationFrame !== 'undefined')
+        requestAnimationFrame(function() { overlay.style.opacity = '1'; });
+    else
+        overlay.style.opacity = '1';
+
+    return { overlay: overlay, container: container, iframe: iframe, keyHandler: keyHandler };
+}
+
+captcha_class.prototype.closeCaptchaModal = function(element_name) {
+    var modal = this.modals[element_name];
+    if (!modal) return;
+    this.modals[element_name] = undefined;
+    if (modal.keyHandler)
+        document.removeEventListener('keydown', modal.keyHandler);
+    if (modal.overlay && modal.overlay.parentNode)
+        modal.overlay.parentNode.removeChild(modal.overlay);
 }
 
 captcha_class.prototype.parseMsg = function(msg) {
@@ -173,35 +241,10 @@ captcha_class.prototype.parseMsg = function(msg) {
         if (captcha_type)
             url += '&captcha_type=' + encodeURIComponent(captcha_type);
 
-        var existing = this.popups[element_name];
-        if (existing) {
-            try { existing.close(); } catch (e) {}
-            this.popups[element_name] = undefined;
-        }
+        if (this.modals[element_name])
+            this.closeCaptchaModal(element_name);
 
-        var popup = this.openCaptchaPopup(url, element_name);
-        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-            var btn = document.querySelector("iframe[name='" + element_name + "']");
-            if (btn && btn.contentWindow)
-                btn.contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
-            alert("Please allow popups for this site to complete the captcha.");
-            return false;
-        }
-        try { popup.focus(); } catch (e) {}
-        this.popups[element_name] = popup;
-
-        var self = this;
-        var poll = setInterval(function () {
-            if (!popup.closed) return;
-            clearInterval(poll);
-            if (self.popups[element_name] !== popup) return;
-            self.popups[element_name] = undefined;
-            var resp = document.querySelector("#g-recaptcha-response-" + element_name);
-            if (resp && resp.value) return;
-            var btn = document.querySelector("iframe[name='" + element_name + "']");
-            if (btn && btn.contentWindow)
-                btn.contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
-        }, 500);
+        this.modals[element_name] = this.openCaptchaModal(url, element_name);
     }
     else if (msg.indexOf('captcha_done;') === 0) {
         var parts = msg.split(';');
@@ -210,11 +253,7 @@ captcha_class.prototype.parseMsg = function(msg) {
         var resp_input = document.querySelector("#g-recaptcha-response-" + element_name);
         if (resp_input)
             resp_input.value = captcha_result;
-        var popup = this.popups[element_name];
-        if (popup) {
-            try { popup.close(); } catch (e) {}
-            this.popups[element_name] = undefined;
-        }
+        this.closeCaptchaModal(element_name);
         clearTimeout(this.timeout[element_name]);
         if (this.callbacks[element_name] != undefined) {
             this.callbacks[element_name]();
@@ -226,9 +265,10 @@ captcha_class.prototype.parseMsg = function(msg) {
         var element_name = parts[1];
         var width = parseInt(parts[2], 10);
         var height = parseInt(parts[3], 10);
-        var popup = this.popups[element_name];
-        if (popup && !popup.closed && !isNaN(width) && !isNaN(height)) {
-            try { popup.resizeTo(width + 40, height + 80); } catch (e) {}
+        var modal = this.modals[element_name];
+        if (modal && modal.container && !isNaN(width) && !isNaN(height)) {
+            modal.container.style.width = width + 'px';
+            modal.container.style.height = height + 'px';
         }
     }
 
