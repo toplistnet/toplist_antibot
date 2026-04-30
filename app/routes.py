@@ -334,7 +334,16 @@ async def web_validate_captcha(r: Request) -> Response:
         click_times_key: str = f"captcha_click_times_{post['captcha_id']}"
         raw_times: list = await redis.lrange(click_times_key, 0, -1) or []
         click_times_ms: list = [int(t) for t in raw_times]
-        click_intervals_ms: list = [0] + [click_times_ms[i] - click_times_ms[i-1] for i in range(1, len(click_times_ms))]
+        try:
+            served_ms: int = int(float(post.get('timestamp', 0))) * 1000
+        except (TypeError, ValueError):
+            served_ms = 0
+        click_intervals_ms: list = []
+        if click_times_ms:
+            first_delta: int = click_times_ms[0] - served_ms if served_ms > 0 else 0
+            if first_delta < 0:
+                first_delta = 0
+            click_intervals_ms = [first_delta] + [click_times_ms[i] - click_times_ms[i-1] for i in range(1, len(click_times_ms))]
         click_intervals: str = ",".join(str(d) for d in click_intervals_ms)
         await redis.delete(click_times_key)
         await redis.delete(f"captcha_check_fails_{post['captcha_id']}")
