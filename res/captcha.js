@@ -140,6 +140,11 @@ captcha_class.prototype.parseMsg = function(msg) {
         var url = grecaptcha_url.replace('/assets/captcha.js', parts[2]);
         url += (url.indexOf('?') === -1 ? '?' : '&') + "element_name=" + element_name;
 
+        var sourceDiv = document.querySelector('[data-element-name="' + element_name + '"]');
+        var captcha_type = sourceDiv && sourceDiv.getAttribute('data-captcha-type');
+        if (captcha_type)
+            url += '&captcha_type=' + encodeURIComponent(captcha_type);
+
         var modalDiv = document.createElement('div');
         modalDiv.id = 'modal-' + element_name;
         modalDiv.style.position = 'fixed';
