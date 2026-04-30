@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+<head>
+    <meta charset="UTF-8">
+	<link rel="icon" type="image/png" href="https://metin2pserver.net/assets/img/fav.png" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="color-scheme" content="light dark">
+    <title>{{ Translate(locale, 'AntiBot Check') }}</title>
+    <style>
+		body {
+			font-family: 'Source Sans Pro',sans-serif;
+			background: transparent;
+			width: 100%;
+			height: 100vh;
+		}
+		h1 {
+			font-size:14px;
+			margin:0;
+		}
+		.card {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			margin-top: -133px;
+			margin-left: -200px;
+			height: 266px;
+			width: 400px;
+		}
+		.card-header, .card-footer {
+			padding: 10px;
+			background-color: #292929;
+			color:#dadada;
+		}
+		.card-footer {
+			width:380px;
+			margin-left:-6px;
+		}
+		.card-header {
+			border-bottom: 1px solid #4b4b4b;
+		}
+		.card-body {
+			position:relative;
+			margin-left: 48px;
+			height: 149px;
+			width: 286px;
+		}
+		.card-outter {
+			height: 159px;
+			width: 388px;
+			padding:6px;
+			background-color: #292929;
+			-webkit-box-shadow: inset 0px 0px 30px 5px rgba(95,168,224,0.2);
+			box-shadow: inset 0px 0px 30px 5px rgba(95,168,224,0.2);
+			margin: 0 auto;
+		}
+		.card-bottom-wrap {
+			background: rgb(96,84,62);
+			background: linear-gradient(90deg,rgba(96,84,62,1) 0%,rgba(96,77,62,1) 100%);
+			padding: 10px;
+			line-height: 25px;
+			color: #fff;
+			font-size: 14px;
+			box-sizing: border-box;
+			border: 1px solid #72604a;
+			display: flex;
+			justify-content: space-between;
+		}
+		.card-img {
+			background-size: cover;
+			background-repeat: no-repeat;
+			margin: 0;
+			padding: 0;
+			position:absolute;
+			top:0px;
+			left:0px;
+			cursor: crosshair;
+			height: 149px;
+			width: 286px;
+		}
+		i {
+			width:20px;
+			height:20px;
+			opacity:0.8;
+		}
+		.bottom-icons {
+
+			align-items: center;
+			width: 180px;
+			height: 24px;
+			cursor: not-allowed;
+		}
+		.bottom-icons i {
+			color:rgba(255,255,255,0.8);
+			font-size:16px;
+			margin-right:4px;
+		}
+		img {
+			-moz-user-select: none;
+			-webkit-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+			-webkit-user-drag: none;
+			user-drag: none;
+		}
+		div.visual_marker {
+			width:22px;
+			height:22px;
+			border-radius: 20%;
+			border: 1px solid #62aee8;
+			position:absolute;
+			left:-2px;
+			top: -2px;
+			cursor: not-allowed;
+		}
+		body > div > div.card-outter > div.card-footer > div > span > i {
+			border-radius: 20%;
+			border: 1px solid #62aee8;
+			font-style: normal;
+		}
+		div.dot {
+			width:10px;
+			height:10px;
+			background-color: #5fa8e0;
+			position:absolute;
+		}
+		.shake {
+			animation: shake 0.5s;
+			animation-iteration-count: infinite;
+		}
+		@keyframes shake {
+			0% { transform: translate(1px, 1px) rotate(0deg); }
+			10% { transform: translate(-1px, -2px) rotate(-1deg); }
+			20% { transform: translate(-3px, 0px) rotate(1deg); }
+			30% { transform: translate(3px, 2px) rotate(0deg); }
+			40% { transform: translate(1px, -1px) rotate(1deg); }
+			50% { transform: translate(-1px, 2px) rotate(-1deg); }
+			60% { transform: translate(-3px, 1px) rotate(0deg); }
+			70% { transform: translate(3px, 1px) rotate(-1deg); }
+			80% { transform: translate(-1px, -1px) rotate(1deg); }
+			90% { transform: translate(1px, 2px) rotate(0deg); }
+			100% { transform: translate(1px, -2px) rotate(-1deg); }
+		  }
+	</style>
+</head>
+<body data-icons="{{ icons_count }}">
+	<div class="card">
+		<div class="card-header">
+			<h1>{{ Translate(locale, 'Antibot-Check: Click on the icon in the picture!') }}</h1>
+		</div>
+		<div class="card-outter">
+			<div class="card-body">
+				<div class="card-img" style="background:url('{{ img|safe }}')">
+			</div>
+		</div>
+		<div class="card-footer">
+			<div class="card-bottom-wrap">
+				<span>
+				{{ Translate(locale, 'Find the marked *Icon* in the picture')|replace('*','<i>',1)|replace('*','</i>',1)|safe }}
+				</span>
+				<div class="bottom-icons">
+					<div style="position:relative;">
+						<img class="icons" src="{{ icons|safe }}" draggable="false">
+						<div id="visual_marker" class="visual_marker"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js" integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script>
+		function fail() {
+			$('.card').addClass('shake');
+			setTimeout(function() {
+				$('.card').removeClass('shake');
+				window.location.reload();
+			}, 400);
+		}
+
+		$(document).ready(function() {
+			var clicks = [];
+			$('.card-img').click(function(e) {
+				if (clicks.length >= $("body").data('icons'))
+					return;
+
+				var offset = $(this).offset();
+				var x = e.pageX - offset.left;
+				var y = e.pageY - offset.top;
+
+				clicks.push([x,y,+new Date()]);
+				$('.card-body').append('<div class="dot" style="left:' + (x-6) + 'px; top:' + (y-6) + 'px;"></div>');
+				// TODO: replace dot with visual_marker + mousehover moves it until you drop it..
+
+				if ($("body").data('icons') == clicks.length) {
+					var element = "{{ element_name }}";
+					var payload = {
+						captcha_id: {{ captcha_id }},
+						timestamp: {{ timestamp }},
+						sitekey: '{{ sitekey }}',
+						hash: '{{ hash }}',
+						captcha_type: 3,
+						clicks: JSON.stringify(clicks)
+					};
+
+					$.post('/captcha/validate', payload, function(data) {
+						if (data['status'] == false)
+							fail();
+						else if (data['status'] == true)
+							window.top.postMessage('captcha_done;' + element + ";" + data['result'], '*');
+					});
+				}
+				else {
+					$('div#visual_marker').css('left', -2 + (clicks.length * 25));
+				}
+			});
+
+			setTimeout(function() {
+				fail();
+			}, 60*3*1000);
+			window.top.postMessage('captcha_iframe_size;{{ element_name }};{{ width }};{{ height }}', '*');
+		});
+	</script>
+</body>
+</html>

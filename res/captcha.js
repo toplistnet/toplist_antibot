@@ -25,6 +25,12 @@ captcha_class.prototype.renderOneElement = function(div, sitekey) {
     iframe.scrolling = 'no';
     iframe.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
     iframe.src = grecaptcha_url.replace('/assets/captcha.js', '') + '/captcha/button/' + sitekey + '?element_name=' + element_name;
+
+    var forced_type = (window.location.search.match(/[?&]captcha_type=(\d+)/) || [])[1];
+    if (!forced_type)
+        forced_type = div.getAttribute('data-captcha-type');
+    if (forced_type && /^\d+$/.test(forced_type))
+        iframe.src += '&captcha_type=' + forced_type;
     
     if (window.attachEvent) {
         document.attachEvent('onmousemove', function() {
@@ -132,7 +138,7 @@ captcha_class.prototype.parseMsg = function(msg) {
         var element_name = parts[1];
         
         var url = grecaptcha_url.replace('/assets/captcha.js', parts[2]);
-        url += "?element_name=" + element_name;
+        url += (url.indexOf('?') === -1 ? '?' : '&') + "element_name=" + element_name;
 
         var modalDiv = document.createElement('div');
         modalDiv.id = 'modal-' + element_name;

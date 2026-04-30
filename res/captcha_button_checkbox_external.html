@@ -230,7 +230,7 @@
                         return false;
                     })();
 
-                    window.top.postMessage('captcha_url;' + element_name + ";" + "/captcha/display/{{ sitekey }}/{{ sitekey_hash }}", '*');
+                    window.top.postMessage('captcha_url;' + element_name + ";" + "/captcha/display/{{ sitekey }}/{{ sitekey_hash }}{% if captcha_type|default(-1) != -1 %}?captcha_type={{ captcha_type }}{% endif %}", '*');
                 }
             });
 

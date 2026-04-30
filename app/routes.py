@@ -6,6 +6,7 @@ import app.tools.utils as utils
 import json
 import app.captcha1 as captcha1
 import app.captcha2 as captcha2
+import app.captcha3 as captcha3
 import time
 
 captchas: dict = {
@@ -27,20 +28,35 @@ captchas: dict = {
         'width' : 402,
         'height' : 400,
     },
+    3 : {
+        'count' : -1,
+        'min_count' : int(utils.Config(key="captcha3_pregeneration_count", default="10")),
+        'generate' : captcha3.Generate,
+        'validate' : captcha3.Validate,
+        'template' : "3/index.html",
+        'width' : 407,
+        'height' : 268,
+    },
     'stats' : {
         "captcha_button_rendered": 0,
         "captcha1_rendered": 0,
         "captcha2_rendered": 0,
+        "captcha3_rendered": 0,
         "captcha1_generated": 0,
         "captcha2_generated": 0,
+        "captcha3_generated": 0,
         "captcha1_validations": 0,
         "captcha2_validations": 0,
+        "captcha3_validations": 0,
         "captcha1_validations_succeeded": 0,
         "captcha2_validations_succeeded": 0,
+        "captcha3_validations_succeeded": 0,
         "captcha1_validations_failed": 0,
         "captcha2_validations_failed": 0,
+        "captcha3_validations_failed": 0,
         "captcha1_validations_ratio": 0,
         "captcha2_validations_ratio": 0,
+        "captcha3_validations_ratio": 0,
     },
 }
 
@@ -122,10 +138,16 @@ async def route_captcha_button(r: Request) -> Response:
     if not await redis.sismember(name="SITEKEYS", value=sitekey):
         return ResponseError(status_code=403, message="Site-Key Not Allowed")
     
+    captcha_type = -1
+    forced: str = r.query.get('captcha_type', default='')
+    if forced.isdigit() and int(forced) in captchas:
+        captcha_type: int = int(forced)
+        
     context: dict = {
         "locale" : r.lang,
         "sitekey" : sitekey,
         "sitekey_hash" : utils.FastHash(input=f"{sitekey}_allowgeneration_{app.cfg.name}"),
+        "captcha_type" : captcha_type,
     }
 
     captchas['stats'][f"captcha_button_rendered"] = \
@@ -147,7 +169,17 @@ async def route_gen_captcha(r: Request) -> Response:
     await EnsureCaptchaAvailability()
 
     _id: int = await redis.incr(name="captcha_serial_id")
-    captcha_type: int = random.randint(a=1, b=2) # TODO: add logic
+
+    forced: str = r.query.get('captcha_type', default='')
+    if forced.isdigit() and int(forced) in captchas:
+        captcha_type: int = int(forced)
+    else:
+        types_cfg: str = str(object=utils.Config(key='captcha_default_types', default='1,2'))
+        pool: list[int] = [int(t) for t in types_cfg.split(',') if t.strip().isdigit() and int(t) in captchas]
+        if not pool:
+            pool = [k for k in captchas.keys() if isinstance(k, int)]
+        captcha_type = random.choice(seq=pool)
+
     _data: bytes | float | int | str = await redis.spop(name=f"captcha{captcha_type}") or ''
     data: dict = json.loads(s=str(object=_data))
 
@@ -167,11 +199,14 @@ async def route_gen_captcha(r: Request) -> Response:
         'height' : captchas[captcha_type]['height'],
     }
     
-    if captcha_type == 1:
+    if int(utils.Config(key="debug", default="0")):
+        print('Captcha_Type: ' + str(captcha_type))
+        
+    if captcha_type == 1 or captcha_type == 3:
         await redis.set(name=f"captcha_{_id}", value=json.dumps(obj=data['icon_coordinates']), ex=60*10)
         context.update({
             'icons' : data['icons_base64'],
-            'icons_count' : data['icons_count'], 
+            'icons_count' : data['icons_count'],
         })
     elif captcha_type == 2:
         await redis.set(name=f"captcha_{_id}", value=json.dumps(obj=data['data']), ex=60*10)
@@ -271,7 +306,6 @@ async def route_display_captcha_test(r: Request) -> Response:
             data: dict = await resp.json() or {}
             return ResponseJSON(content={'POST_DATA' : r.post, 'captcha_verify' : data})
 
-    return ResponseJSON(content=r.post)
 
 app.on_startup(fn=utils.PrepareDataset)
 app.on_startup(fn=EnsureCaptchaAvailability)
