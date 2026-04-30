@@ -165,7 +165,7 @@
 					if (data['status'] == false)
 						fail();
 					else if (data['status'] == true)
-						window.top.postMessage('captcha_done;' + element + ";" + data['result'], '*');
+						(window.opener || window.top).postMessage('captcha_done;' + element + ";" + data['result'], '*');
 				});
 			});
 
@@ -176,7 +176,7 @@
 			setTimeout(function() {
 				fail();
 			}, 60*3*1000);
-			window.top.postMessage('captcha_iframe_size;{{ element_name }};{{ width }};{{ height }}', '*');
+			(window.opener || window.top).postMessage('captcha_iframe_size;{{ element_name }};{{ width }};{{ height }}', '*');
 		});
 	</script>
 </body>

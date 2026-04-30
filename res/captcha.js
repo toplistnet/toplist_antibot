@@ -5,6 +5,7 @@ grecaptcha_url = grecaptcha_url.split('?')[0];
 function captcha_class() {
     this.timeout = [];
     this.callbacks = [];
+    this.popups = [];
 }
 
 captcha_class.prototype.renderOneElement = function(div, sitekey) {
@@ -120,23 +121,50 @@ captcha_class.prototype.resetCaptchaButtonTimeout = function(iframe, element_nam
     if (this.timeout[element_name])
         clearTimeout(this.timeout[element_name]);
 
+    var self = this;
     this.timeout[element_name] = setTimeout(function () {
         iframe.src = iframe.src
-        if (document.querySelector('#modal-' + element_name))
-            document.querySelector('#modal-' + element_name).remove();
+        if (self.popups[element_name]) {
+            try { self.popups[element_name].close(); } catch (e) {}
+            self.popups[element_name] = undefined;
+        }
         grecaptcha.resetCaptchaButtonTimeout(iframe, element_name);
     }, 1000*2*2000); // 2 minutes
+}
+
+captcha_class.prototype.openCaptchaPopup = function(url, element_name) {
+    var w = 480, h = 560;
+    var screenLeft = (typeof window.screenX !== 'undefined') ? window.screenX : window.screenLeft;
+    var screenTop  = (typeof window.screenY !== 'undefined') ? window.screenY : window.screenTop;
+    var winWidth   = window.outerWidth  || document.documentElement.clientWidth  || screen.width;
+    var winHeight  = window.outerHeight || document.documentElement.clientHeight || screen.height;
+    var left = Math.round(screenLeft + Math.max(0, (winWidth  - w) / 2));
+    var top  = Math.round(screenTop  + Math.max(0, (winHeight - h) / 2));
+    var features = [
+        'popup=yes',
+        'width=' + w,
+        'height=' + h,
+        'left=' + left,
+        'top=' + top,
+        'resizable=yes',
+        'scrollbars=no',
+        'toolbar=no',
+        'location=no',
+        'status=no',
+        'menubar=no'
+    ].join(',');
+    return window.open(url, 'captcha_' + element_name, features);
 }
 
 captcha_class.prototype.parseMsg = function(msg) {
     if (typeof msg !== 'string') {
         return false;
     }
-    
+
     if (msg.indexOf('captcha_url;') === 0) {
         var parts = msg.split(';');
         var element_name = parts[1];
-        
+
         var url = grecaptcha_url.replace('/assets/captcha.js', parts[2]);
         url += (url.indexOf('?') === -1 ? '?' : '&') + "element_name=" + element_name;
 
@@ -145,58 +173,35 @@ captcha_class.prototype.parseMsg = function(msg) {
         if (captcha_type)
             url += '&captcha_type=' + encodeURIComponent(captcha_type);
 
-        var modalDiv = document.createElement('div');
-        modalDiv.id = 'modal-' + element_name;
-        modalDiv.style.position = 'fixed';
-        modalDiv.style.top = '0';
-        modalDiv.style.left = '0';
-        modalDiv.style.width = '100%';
-        modalDiv.style.height = '100%';
-        modalDiv.style.background = 'rgba(0, 0, 0, 0.7)';
-        modalDiv.style.zIndex = '9999';
-        modalDiv.style.display = 'flex';
-        modalDiv.style.justifyContent = 'center';
-        modalDiv.style.alignItems = 'center';
-        modalDiv.onclick = function() {
-            document.querySelector("iframe[name='" + element_name + "']").contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
-            document.querySelector('#modal-' + element_name).remove();
-        };
+        var existing = this.popups[element_name];
+        if (existing) {
+            try { existing.close(); } catch (e) {}
+            this.popups[element_name] = undefined;
+        }
 
-        var modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        modalContent.id = 'modal-id-' + element_name;
-        modalContent.style.position = 'relative';
-        modalContent.style.width = '0px';
-        modalContent.style.height = '0px';
-        modalContent.style.background = 'white';
+        var popup = this.openCaptchaPopup(url, element_name);
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            var btn = document.querySelector("iframe[name='" + element_name + "']");
+            if (btn && btn.contentWindow)
+                btn.contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
+            alert("Please allow popups for this site to complete the captcha.");
+            return false;
+        }
+        try { popup.focus(); } catch (e) {}
+        this.popups[element_name] = popup;
 
-        var closeSpan = document.createElement('span');
-        closeSpan.className = 'close';
-        closeSpan.style.position = 'absolute';
-        closeSpan.style.fontSize = '26px';
-        closeSpan.style.color = 'white';
-        closeSpan.style.right = '10px';
-        closeSpan.style.cursor = 'pointer';
-        closeSpan.innerHTML = '&times;';
-        closeSpan.onclick = function() {
-            document.querySelector("iframe[name='" + element_name + "']").contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
-            document.querySelector('#modal-' + element_name).remove();
-        };
-
-        var iframe2 = document.createElement('iframe');
-        iframe2.allowTransparency = true;
-        iframe2.src = url;
-        iframe2.style.width = '100%';
-        iframe2.style.height = '100%';
-        iframe2.style.border = 'none';
-        iframe2.frameBorder = '0';
-        iframe2.scrolling = 'no';
-        iframe2.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
-
-        modalContent.appendChild(closeSpan);
-        modalContent.appendChild(iframe2);
-        modalDiv.appendChild(modalContent);
-        document.querySelector('div#captcha_wrapper_' + element_name).appendChild(modalDiv);
+        var self = this;
+        var poll = setInterval(function () {
+            if (!popup.closed) return;
+            clearInterval(poll);
+            if (self.popups[element_name] !== popup) return;
+            self.popups[element_name] = undefined;
+            var resp = document.querySelector("#g-recaptcha-response-" + element_name);
+            if (resp && resp.value) return;
+            var btn = document.querySelector("iframe[name='" + element_name + "']");
+            if (btn && btn.contentWindow)
+                btn.contentWindow.postMessage('reset_captcha_checkbox;' + element_name, '*');
+        }, 500);
     }
     else if (msg.indexOf('captcha_done;') === 0) {
         var parts = msg.split(';');
@@ -205,9 +210,11 @@ captcha_class.prototype.parseMsg = function(msg) {
         var resp_input = document.querySelector("#g-recaptcha-response-" + element_name);
         if (resp_input)
             resp_input.value = captcha_result;
-        var modal = document.querySelector('#modal-' + element_name);
-        if (modal)
-            modal.remove();
+        var popup = this.popups[element_name];
+        if (popup) {
+            try { popup.close(); } catch (e) {}
+            this.popups[element_name] = undefined;
+        }
         clearTimeout(this.timeout[element_name]);
         if (this.callbacks[element_name] != undefined) {
             this.callbacks[element_name]();
@@ -217,15 +224,14 @@ captcha_class.prototype.parseMsg = function(msg) {
     else if (msg.indexOf('captcha_iframe_size;') === 0) {
         var parts = msg.split(';');
         var element_name = parts[1];
-        var width = parts[2];
-        var height = parts[3];
-        var modal_inner = document.querySelector("#modal-id-" + element_name);
-        if (modal_inner) {
-            modal_inner.style.width = width + "px";
-            modal_inner.style.height = height + "px";
+        var width = parseInt(parts[2], 10);
+        var height = parseInt(parts[3], 10);
+        var popup = this.popups[element_name];
+        if (popup && !popup.closed && !isNaN(width) && !isNaN(height)) {
+            try { popup.resizeTo(width + 40, height + 80); } catch (e) {}
         }
     }
-    
+
     return false;
 }
 
