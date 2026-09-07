@@ -2,6 +2,15 @@
 var grecaptcha_url = document.querySelector('script[src*="/assets/captcha.js"]').src;
 grecaptcha_url = grecaptcha_url.split('?')[0];
 
+function captcha_forced_type(div) {
+    var forced_type = (window.location.search.match(/[?&]captcha_type=(\d+)/) || [])[1];
+    if (!forced_type && div)
+        forced_type = div.getAttribute('data-captcha-type') || div.getAttribute('data-type');
+    if (forced_type && /^\d+$/.test(forced_type))
+        return forced_type;
+    return '';
+}
+
 function captcha_class() {
     this.timeout = [];
     this.callbacks = [];
@@ -27,10 +36,8 @@ captcha_class.prototype.renderOneElement = function(div, sitekey) {
     iframe.sandbox = 'allow-forms allow-same-origin allow-scripts allow-top-navigation';
     iframe.src = grecaptcha_url.replace('/assets/captcha.js', '') + '/captcha/button/' + sitekey + '?element_name=' + element_name;
 
-    var forced_type = (window.location.search.match(/[?&]captcha_type=(\d+)/) || [])[1];
-    if (!forced_type)
-        forced_type = div.getAttribute('data-captcha-type');
-    if (forced_type && /^\d+$/.test(forced_type))
+    var forced_type = captcha_forced_type(div);
+    if (forced_type)
         iframe.src += '&captcha_type=' + forced_type;
     
     if (window.attachEvent) {
@@ -239,9 +246,9 @@ captcha_class.prototype.parseMsg = function(msg) {
         url += (url.indexOf('?') === -1 ? '?' : '&') + "element_name=" + element_name;
 
         var sourceDiv = document.querySelector('[data-element-name="' + element_name + '"]');
-        var captcha_type = sourceDiv && sourceDiv.getAttribute('data-captcha-type');
+        var captcha_type = captcha_forced_type(sourceDiv);
         if (captcha_type)
-            url += '&captcha_type=' + encodeURIComponent(captcha_type);
+            url += '&captcha_type=' + captcha_type;
 
         if (this.modals[element_name])
             this.closeCaptchaModal(element_name);
