@@ -8,3 +8,4 @@ test.jpeg
 res/*.gz
 res/bgs/*
 res/cifar-10-batches-py/*
+*.log-*
