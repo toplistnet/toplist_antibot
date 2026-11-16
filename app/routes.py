@@ -13,14 +13,19 @@ import base64
 import asyncio
 import struct
 
-# Bloat variants: captcha type N + BLOAT_OFFSET (11, 12, 13) is the same puzzle as N,
-# but the background image is not inlined. It is served from /captcha/img/ padded
-# with random bytes (stored inside JPEG APPn segments placed right after SOI, so the
-# picture cannot be decoded before the whole file has arrived) to slow bots down.
+# Bloat variants: the same puzzle as the base type (1-3), but the background image is
+# not inlined. It is served from /captcha/img/ padded with random bytes (stored inside
+# JPEG APPn segments placed right after SOI, so the picture cannot be decoded before the
+# whole file has arrived) to slow bots down and make them pay for the traffic.
+#   11, 12, 13           base + 10      size from captcha_bloat_mb (default 5-8 MB)
+#   N*100 + base         e.g. 1002      type 2 padded to N MB (+0-10% jitter), N = 1..50
 BLOAT_OFFSET: int = 10
+BLOAT_SIZED_MAX_MB: int = 50
 _bloat_pool: bytes = b''
 
 def BaseType(captcha_type: int) -> int:
+    if captcha_type >= 100 and captcha_type // 100 <= BLOAT_SIZED_MAX_MB and (captcha_type % 100) in captchas:
+        return captcha_type % 100
     if captcha_type > BLOAT_OFFSET and (captcha_type - BLOAT_OFFSET) in captchas:
         return captcha_type - BLOAT_OFFSET
     return captcha_type
@@ -39,23 +44,32 @@ def _cfg_range(key: str, default: str) -> tuple[float, float]:
         lo, hi = [float(v) for v in default.split(',')]
         return (lo, hi)
 
-def BloatJpeg(jpeg: bytes) -> bytes:
+def BloatRangeMb(captcha_type: int) -> tuple[float, float]:
+    if captcha_type >= 100:
+        mb: float = float(captcha_type // 100)
+        return (mb, mb * 1.1)
+    return _cfg_range(key='captcha_bloat_mb', default='5,8')
+
+def BloatJpeg(jpeg: bytes, captcha_type: int) -> bytes:
     global _bloat_pool
-    lo, hi = _cfg_range(key='captcha_bloat_mb', default='5,8')
+    lo, hi = BloatRangeMb(captcha_type=captcha_type)
     size: int = int(random.uniform(a=lo, b=hi) * 1024 * 1024)
     if len(_bloat_pool) < size + 1024 * 1024:
-        _bloat_pool = os.urandom(int(hi * 1024 * 1024) + 2 * 1024 * 1024)
+        _bloat_pool = os.urandom(size + 2 * 1024 * 1024)
 
-    # random window of the pool + a fresh random head, so no two responses are equal
+    # Segments reference the pool through a memoryview, so the only full-size copy
+    # made per request is the final join. A fresh random head keeps responses unique.
     start: int = random.randint(0, len(_bloat_pool) - size)
-    junk: bytes = os.urandom(4096) + _bloat_pool[start:start + size]
-
+    pool: memoryview = memoryview(_bloat_pool)[start:start + size]
     seg_max: int = 65533 - 16
-    parts: list[bytes] = [jpeg[:2]]  # SOI
-    for off in range(0, len(junk), seg_max):
-        chunk: bytes = junk[off:off + seg_max]
+    parts: list = [jpeg[:2]]  # SOI
+    head: bytes = os.urandom(seg_max)
+    parts += [struct.pack('>BBH', 0xFF, 0xEC, len(head) + 2), head]
+    for off in range(0, size, seg_max):
+        chunk: memoryview = pool[off:off + seg_max]
         marker: int = random.choice(seq=(0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEF))
-        parts.append(struct.pack('>BBH', 0xFF, marker, len(chunk) + 2) + chunk)
+        parts.append(struct.pack('>BBH', 0xFF, marker, len(chunk) + 2))
+        parts.append(chunk)
     parts.append(jpeg[2:])
     return b''.join(parts)
 
@@ -264,6 +278,7 @@ async def route_gen_captcha(r: Request) -> Response:
         # cannot load the page through a (paid per GB) proxy and pull the heavy picture
         # over a cheap connection
         await redis.set(name=f"captcha_img_ip_{_id}", value=r.ip, ex=60*10)
+        await redis.set(name=f"captcha_img_type_{_id}", value=captcha_type, ex=60*10)
         context['img'] = ''
         context['bloat_src'] = f"/captcha/img/{_id}/{utils.FastHash(input=f'{_id}_img_{app.cfg.name}')}.jpg"
     
@@ -315,7 +330,8 @@ async def route_captcha_bloat_img(r: Request) -> Response:
     if hi > 0:
         await asyncio.sleep(random.uniform(a=lo, b=hi) / 1000)
 
-    body: bytes = BloatJpeg(jpeg=base64.b64decode(s=img_b64))
+    img_type: int = int(await redis.get(name=f"captcha_img_type_{captcha_id}") or 11)
+    body: bytes = BloatJpeg(jpeg=base64.b64decode(s=img_b64), captcha_type=img_type)
     # the puzzle clock starts when the picture is actually requested, see validate
     await redis.set(name=f"captcha_img_t_{captcha_id}", value=int(time.time() * 1000), ex=60*10)
     return Response(content=body, status_code=200, content_type="image/jpeg", headers={
