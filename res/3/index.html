@@ -149,7 +149,7 @@
 		</div>
 		<div class="card-outter">
 			<div class="card-body">
-				<div class="card-img" style="background:url('{{ img|safe }}')">
+				<div class="card-img" {% if bloat_src %}data-bsrc="{{ bloat_src }}"{% else %}style="background:url('{{ img|safe }}')"{% endif %}>
 			</div>
 		</div>
 		<div class="card-footer">
@@ -196,7 +196,7 @@
 
 				$.post('/captcha/check_click', {
 					captcha_id: {{ captcha_id }},
-					captcha_type: 3,
+					captcha_type: {{ captcha_type }},
 					timestamp: {{ timestamp }},
 					sitekey: '{{ sitekey }}',
 					hash: '{{ hash }}',
@@ -216,7 +216,7 @@
 							timestamp: {{ timestamp }},
 							sitekey: '{{ sitekey }}',
 							hash: '{{ hash }}',
-							captcha_type: 3,
+							captcha_type: {{ captcha_type }},
 							clicks: JSON.stringify(clicks)
 						};
 
@@ -240,5 +240,6 @@
 			window.top.postMessage('captcha_iframe_size;{{ element_name }};{{ width }};{{ height }}', '*');
 		});
 	</script>
+{% if bloat_src %}{% include "bloat.html" %}{% endif %}
 </body>
 </html>

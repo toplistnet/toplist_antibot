@@ -8,6 +8,56 @@ import app.captcha1 as captcha1
 import app.captcha2 as captcha2
 import app.captcha3 as captcha3
 import time
+import os
+import base64
+import asyncio
+import struct
+
+# Bloat variants: captcha type N + BLOAT_OFFSET (11, 12, 13) is the same puzzle as N,
+# but the background image is not inlined. It is served from /captcha/img/ padded
+# with random bytes (stored inside JPEG APPn segments placed right after SOI, so the
+# picture cannot be decoded before the whole file has arrived) to slow bots down.
+BLOAT_OFFSET: int = 10
+_bloat_pool: bytes = b''
+
+def BaseType(captcha_type: int) -> int:
+    if captcha_type > BLOAT_OFFSET and (captcha_type - BLOAT_OFFSET) in captchas:
+        return captcha_type - BLOAT_OFFSET
+    return captcha_type
+
+def IsBloat(captcha_type: int) -> bool:
+    return captcha_type != BaseType(captcha_type=captcha_type)
+
+def IsKnownType(captcha_type: int) -> bool:
+    return BaseType(captcha_type=captcha_type) in captchas and str(object=BaseType(captcha_type=captcha_type)).isdigit()
+
+def _cfg_range(key: str, default: str) -> tuple[float, float]:
+    try:
+        lo, hi = [float(v) for v in str(object=utils.Config(key=key, default=default)).split(',')[:2]]
+        return (min(lo, hi), max(lo, hi))
+    except Exception:
+        lo, hi = [float(v) for v in default.split(',')]
+        return (lo, hi)
+
+def BloatJpeg(jpeg: bytes) -> bytes:
+    global _bloat_pool
+    lo, hi = _cfg_range(key='captcha_bloat_mb', default='5,8')
+    size: int = int(random.uniform(a=lo, b=hi) * 1024 * 1024)
+    if len(_bloat_pool) < size + 1024 * 1024:
+        _bloat_pool = os.urandom(int(hi * 1024 * 1024) + 2 * 1024 * 1024)
+
+    # random window of the pool + a fresh random head, so no two responses are equal
+    start: int = random.randint(0, len(_bloat_pool) - size)
+    junk: bytes = os.urandom(4096) + _bloat_pool[start:start + size]
+
+    seg_max: int = 65533 - 16
+    parts: list[bytes] = [jpeg[:2]]  # SOI
+    for off in range(0, len(junk), seg_max):
+        chunk: bytes = junk[off:off + seg_max]
+        marker: int = random.choice(seq=(0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEF))
+        parts.append(struct.pack('>BBH', 0xFF, marker, len(chunk) + 2) + chunk)
+    parts.append(jpeg[2:])
+    return b''.join(parts)
 
 captchas: dict = {
     1 : {
@@ -145,7 +195,7 @@ async def route_captcha_button(r: Request) -> Response:
     
     captcha_type = -1
     forced: str = r.query.get('captcha_type', default='')
-    if forced.isdigit() and int(forced) in captchas:
+    if forced.isdigit() and IsKnownType(captcha_type=int(forced)):
         captcha_type: int = int(forced)
         
     context: dict = {
@@ -176,7 +226,7 @@ async def route_gen_captcha(r: Request) -> Response:
     _id: int = await redis.incr(name="captcha_serial_id")
 
     forced: str = r.query.get('captcha_type', default='')
-    if forced.isdigit() and int(forced) in captchas:
+    if forced.isdigit() and IsKnownType(captcha_type=int(forced)):
         captcha_type: int = int(forced)
     else:
         types_cfg: str = str(object=utils.Config(key='captcha_default_types', default='1,2'))
@@ -185,7 +235,8 @@ async def route_gen_captcha(r: Request) -> Response:
             pool = [k for k in captchas.keys() if isinstance(k, int)]
         captcha_type = random.choice(seq=pool)
 
-    _data: bytes | float | int | str = await redis.spop(name=captchas[captcha_type]['set_name']) or ''
+    base_type: int = BaseType(captcha_type=captcha_type)
+    _data: bytes | float | int | str = await redis.spop(name=captchas[base_type]['set_name']) or ''
     data: dict = json.loads(s=str(object=_data))
 
     sitekey: str = r.path_params.get("sitekey", "")
@@ -200,20 +251,28 @@ async def route_gen_captcha(r: Request) -> Response:
         'element_name' : r.query.get('element_name', default='aa'),
         'timestamp' : timestamp,
         'sitekey' : sitekey,
-        'width' : captchas[captcha_type]['width'],
-        'height' : captchas[captcha_type]['height'],
+        'width' : captchas[base_type]['width'],
+        'height' : captchas[base_type]['height'],
+        'captcha_type' : captcha_type,
+        'bloat_src' : '',
     }
+
+    if IsBloat(captcha_type=captcha_type):
+        img_b64: str = str(object=data['bg_base64']).split(',', 1)[-1]
+        await redis.set(name=f"captcha_img_{_id}", value=img_b64, ex=60*10)
+        context['img'] = ''
+        context['bloat_src'] = f"/captcha/img/{_id}/{utils.FastHash(input=f'{_id}_img_{app.cfg.name}')}.jpg"
     
     if int(utils.Config(key="debug", default="0")):
         print('Captcha_Type: ' + str(captcha_type))
         
-    if captcha_type == 1 or captcha_type == 3:
+    if base_type == 1 or base_type == 3:
         await redis.set(name=f"captcha_{_id}", value=json.dumps(obj=data['icon_coordinates']), ex=60*10)
         context.update({
             'icons' : data['icons_base64'],
             'icons_count' : data['icons_count'],
         })
-    elif captcha_type == 2:
+    elif base_type == 2:
         await redis.set(name=f"captcha_{_id}", value=json.dumps(obj=data['data']), ex=60*10)
     else:
         return ResponseError(status_code=403, message="Unknown captcha_type")
@@ -221,9 +280,32 @@ async def route_gen_captcha(r: Request) -> Response:
     html: str = await jinja2.render(path=captchas[data['type']]['template'], **context)
     await redis.zincrby(name="IPSTATS:CAPTCHA:GENERATED", amount=1, value=r.ip)
 
-    captchas['stats'][f"captcha{captcha_type}_rendered"] = \
-        int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_rendered"))
+    captchas['stats'][f"captcha{base_type}_rendered"] = \
+        int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{base_type}_rendered"))
     return ResponseHTML(content=html)
+
+@app.route("/captcha/img/{captcha_id:int}/{token:str}", methods=['GET'])
+async def route_captcha_bloat_img(r: Request) -> Response:
+    captcha_id: int = int(r.path_params.get('captcha_id', 0))
+    token: str = str(object=r.path_params.get('token', '')).split('.', 1)[0]
+    if token != utils.FastHash(input=f"{captcha_id}_img_{app.cfg.name}"):
+        return ResponseError(status_code=404, message="")
+
+    img_b64: str | bytes | None = await redis.getdel(name=f"captcha_img_{captcha_id}")
+    if not img_b64:
+        return ResponseError(status_code=404, message="")
+
+    lo, hi = _cfg_range(key='captcha_bloat_delay_ms', default='300,1500')
+    if hi > 0:
+        await asyncio.sleep(random.uniform(a=lo, b=hi) / 1000)
+
+    body: bytes = BloatJpeg(jpeg=base64.b64decode(s=img_b64))
+    # the puzzle clock starts when the picture is actually requested, see validate
+    await redis.set(name=f"captcha_img_t_{captcha_id}", value=int(time.time() * 1000), ex=60*10)
+    return Response(content=body, status_code=200, content_type="image/jpeg", headers={
+        'cache-control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'content-length': str(object=len(body)),
+    })
     
 CHECK_CLICK_FAIL_LIMIT: int = int(utils.Config(key='captcha_check_click_fail_limit', default="30"))
 
@@ -237,7 +319,7 @@ async def web_check_captcha_click(r: Request) -> Response:
             return ResponseJSON(content=response)
 
         captcha_type: int = int(post['captcha_type'])
-        if captcha_type not in captchas or 'check_click' not in captchas[captcha_type]:
+        if not IsKnownType(captcha_type=captcha_type) or 'check_click' not in captchas[BaseType(captcha_type=captcha_type)]:
             return ResponseJSON(content=response)
 
         c_hash: str = utils.FastHash(input=f"{post['captcha_id']}_{captcha_type}_{post['timestamp']}_{post['sitekey']}")
@@ -254,7 +336,7 @@ async def web_check_captcha_click(r: Request) -> Response:
         x: int = int(float(post['x']))
         y: int = int(float(post['y']))
 
-        if captchas[captcha_type]['check_click'](db_data=db_data, index=index, x=x, y=y):
+        if captchas[BaseType(captcha_type=captcha_type)]['check_click'](db_data=db_data, index=index, x=x, y=y):
             response['ok'] = True
             now_ms: int = int(time.time() * 1000)
             await redis.rpush(f"captcha_click_times_{post['captcha_id']}", now_ms)
@@ -292,16 +374,21 @@ async def web_validate_captcha(r: Request) -> Response:
     
         db_data_str: bytes = await redis.getdel(name=f"captcha_{post['captcha_id']}") or b'{}'
 
-        if not captcha_type in captchas:
+        if not IsKnownType(captcha_type=captcha_type):
             raise ValueError("unknown captcha_type")
         elif not db_data_str:
             raise ValueError("captcha data not found")
-        
-        captchas['stats'][f"captcha{captcha_type}_validations"] = \
-            int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_validations"))
-        
+
+        base_type: int = BaseType(captcha_type=captcha_type)
+        captchas['stats'][f"captcha{base_type}_validations"] = \
+            int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{base_type}_validations"))
+
+        # a bloat captcha cannot have been solved by a client that never downloaded the picture
+        if IsBloat(captcha_type=captcha_type) and not await redis.exists(f"captcha_img_t_{post['captcha_id']}"):
+            raise ValueError("image not loaded")
+
         db_data: dict = json.loads(s=db_data_str)
-        captchas[captcha_type]['validate'](db_data=db_data, post_data=post)
+        captchas[base_type]['validate'](db_data=db_data, post_data=post)
 
     except ValueError as e:
         validation['error'] = str(object=e)
@@ -319,13 +406,21 @@ async def web_validate_captcha(r: Request) -> Response:
             if 'sitekey' in post:
                 await redis.zincrby(name="STATS:CAPTCHA:FAILED", amount=1, value=post['sitekey'])
             await redis.zincrby(name="IPSTATS:CAPTCHA:FAILED", amount=1, value=r.ip)
-            captchas['stats'][f"captcha{captcha_type}_validations_failed"] = \
-                int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_failed"))
+            stat_type: int = BaseType(captcha_type=captcha_type)
+            captchas['stats'][f"captcha{stat_type}_validations_failed"] = \
+                int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{stat_type}_failed"))
             return ResponseJSON(content=validation)
 
         result_token: str = utils.FastHash(input=f"{post['sitekey']}__{app.cfg.name}_{post['captcha_id']}")
+        # bloat captchas: measure from the moment the picture was requested, so the
+        # (deliberately slow) download does not inflate captcha_duration and trip the
+        # duration based bot rules on the toplist side
+        img_t_ms: int = 0
+        if IsBloat(captcha_type=captcha_type):
+            img_t_ms = int(await redis.getdel(name=f"captcha_img_t_{post['captcha_id']}") or 0)
         try:
-            duration: float = round(time.time() - float(post.get('timestamp', 0)), 3)
+            start_s: float = img_t_ms / 1000 if img_t_ms else float(post.get('timestamp', 0))
+            duration: float = round(time.time() - start_s, 3)
             if duration < 0 or duration > 86400:
                 duration = 0
         except (TypeError, ValueError):
@@ -335,7 +430,7 @@ async def web_validate_captcha(r: Request) -> Response:
         raw_times: list = await redis.lrange(click_times_key, 0, -1) or []
         click_times_ms: list = [int(t) for t in raw_times]
         try:
-            served_ms: int = int(float(post.get('timestamp', 0))) * 1000
+            served_ms: int = img_t_ms or int(float(post.get('timestamp', 0))) * 1000
         except (TypeError, ValueError):
             served_ms = 0
         click_intervals_ms: list = []
@@ -357,8 +452,8 @@ async def web_validate_captcha(r: Request) -> Response:
 
         await redis.zincrby(name="STATS:CAPTCHA:SUCCESS", amount=1, value=post['sitekey'])
         await redis.hincrby(name="IPSTATS:CAPTCHA:SUCCESS", amount=1, key=r.ip)
-        captchas['stats'][f"captcha{captcha_type}_validations_succeeded"] = \
-            int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{captcha_type}_succeeded"))
+        captchas['stats'][f"captcha{BaseType(captcha_type=captcha_type)}_validations_succeeded"] = \
+            int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{BaseType(captcha_type=captcha_type)}_succeeded"))
         
         return ResponseJSON(content={
             'status' : True,

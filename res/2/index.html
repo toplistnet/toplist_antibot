@@ -118,7 +118,7 @@
 		</div>
 		<div class="card-outter">
 			<div class="card-body">
-				<div class="card-im" style="background:url('{{ img|safe }}')">
+				<div class="card-im" {% if bloat_src %}data-bsrc="{{ bloat_src }}"{% else %}style="background:url('{{ img|safe }}')"{% endif %}>
 			</div>
 		</div>
 		<div class="card-footer">
@@ -157,7 +157,7 @@
 					timestamp: {{ timestamp }},
 					sitekey: '{{ sitekey }}',
 					hash: '{{ hash }}',
-					captcha_type: 2,
+					captcha_type: {{ captcha_type }},
 					click: JSON.stringify([x,y]),
 				};
 
@@ -179,5 +179,6 @@
 			window.top.postMessage('captcha_iframe_size;{{ element_name }};{{ width }};{{ height }}', '*');
 		});
 	</script>
+{% if bloat_src %}{% include "bloat.html" %}{% endif %}
 </body>
 </html>

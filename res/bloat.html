@@ -1,0 +1,34 @@
+<style>
+	.ld-wrap{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:rgba(20,20,20,.55);cursor:wait;z-index:5}
+	.ld-ring{width:34px;height:34px;border:3px solid rgba(255,255,255,.18);border-top-color:#5fa8e0;border-radius:50%;animation:ld-spin .8s linear infinite}
+	.ld-txt{margin-top:8px;font-size:11px;color:#cfcfcf}
+	@keyframes ld-spin{to{transform:rotate(360deg)}}
+</style>
+<script>
+(function(){
+	var el = document.querySelector('[data-bsrc]');
+	if (!el) return;
+	if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+	var ov = document.createElement('div');
+	ov.className = 'ld-wrap';
+	ov.innerHTML = '<div class="ld-ring"></div><div class="ld-txt">{{ Translate(locale, "Loading...") }}</div>';
+	// swallow clicks until the picture is there
+	ov.addEventListener('click', function(e){ e.stopPropagation(); e.preventDefault(); }, true);
+	el.appendChild(ov);
+	var src = el.getAttribute('data-bsrc');
+	el.removeAttribute('data-bsrc');
+	function load(){
+		var im = new Image();
+		im.onload = function(){
+			el.style.background = "url('" + src + "')";
+			if (ov.parentNode) ov.parentNode.removeChild(ov);
+		};
+		im.onerror = function(){
+			// the picture is single use, a failed load needs a fresh captcha
+			window.location.reload();
+		};
+		im.src = src;
+	}
+	load();
+})();
+</script>
