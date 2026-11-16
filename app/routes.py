@@ -260,6 +260,10 @@ async def route_gen_captcha(r: Request) -> Response:
     if IsBloat(captcha_type=captcha_type):
         img_b64: str = str(object=data['bg_base64']).split(',', 1)[-1]
         await redis.set(name=f"captcha_img_{_id}", value=img_b64, ex=60*10)
+        # the picture may only be fetched from the IP that loaded the captcha, so a bot
+        # cannot load the page through a (paid per GB) proxy and pull the heavy picture
+        # over a cheap connection
+        await redis.set(name=f"captcha_img_ip_{_id}", value=r.ip, ex=60*10)
         context['img'] = ''
         context['bloat_src'] = f"/captcha/img/{_id}/{utils.FastHash(input=f'{_id}_img_{app.cfg.name}')}.jpg"
     
@@ -289,6 +293,18 @@ async def route_captcha_bloat_img(r: Request) -> Response:
     captcha_id: int = int(r.path_params.get('captcha_id', 0))
     token: str = str(object=r.path_params.get('token', '')).split('.', 1)[0]
     if token != utils.FastHash(input=f"{captcha_id}_img_{app.cfg.name}"):
+        return ResponseError(status_code=404, message="")
+
+    owner_ip: str | bytes | None = await redis.get(name=f"captcha_img_ip_{captcha_id}")
+    if not owner_ip:
+        return ResponseError(status_code=404, message="")
+    if owner_ip != r.ip:
+        # Wrong IP: burn the picture and mark the captcha, so it can no longer be
+        # solved at all - not even by fetching again from the right address.
+        await redis.delete(f"captcha_img_{captcha_id}")
+        await redis.set(name=f"captcha_img_ipfail_{captcha_id}", value=r.ip, ex=60*10)
+        await redis.zincrby(name="IPSTATS:CAPTCHA:IMG_IP_MISMATCH", amount=1, value=r.ip)
+        utils.dprint(f"[bloat_img] ip mismatch id={captcha_id} owner={owner_ip} fetch={r.ip}")
         return ResponseError(status_code=404, message="")
 
     img_b64: str | bytes | None = await redis.getdel(name=f"captcha_img_{captcha_id}")
@@ -384,8 +400,11 @@ async def web_validate_captcha(r: Request) -> Response:
             int(await redis.zincrby(name="STATS:GENERAL", amount=1, value=f"captcha{base_type}_validations"))
 
         # a bloat captcha cannot have been solved by a client that never downloaded the picture
-        if IsBloat(captcha_type=captcha_type) and not await redis.exists(f"captcha_img_t_{post['captcha_id']}"):
-            raise ValueError("image not loaded")
+        if IsBloat(captcha_type=captcha_type):
+            if await redis.exists(f"captcha_img_ipfail_{post['captcha_id']}"):
+                raise ValueError("image fetched from another ip")
+            if not await redis.exists(f"captcha_img_t_{post['captcha_id']}"):
+                raise ValueError("image not loaded")
 
         db_data: dict = json.loads(s=db_data_str)
         captchas[base_type]['validate'](db_data=db_data, post_data=post)
